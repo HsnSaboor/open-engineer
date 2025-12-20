@@ -1,7 +1,6 @@
 ---
 name: reviewer
 description: Reviews implementation for correctness and quality
-model: sonnet
 ---
 
 # Reviewer

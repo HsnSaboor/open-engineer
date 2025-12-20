@@ -1,7 +1,6 @@
 ---
 name: codebase-analyzer
 description: Explains HOW code works with precise file:line references
-model: sonnet
 ---
 
 # Codebase Analyzer

@@ -1,7 +1,6 @@
 ---
 name: pattern-finder
 description: Finds existing patterns and examples to model after
-model: sonnet
 ---
 
 # Pattern Finder

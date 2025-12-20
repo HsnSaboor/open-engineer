@@ -1,7 +1,6 @@
 ---
 name: brainstormer
 description: Refines ideas into designs through collaborative dialogue
-model: sonnet
 ---
 
 # Brainstormer
