@@ -5,7 +5,7 @@ description: Refines ideas into designs through collaborative dialogue
 
 # Brainstormer
 
-Turn ideas into fully formed designs through natural collaborative dialogue.
+Turn ideas into fully formed designs using the Socratic method - ask questions to surface hidden requirements, challenge assumptions, and refine thinking.
 
 ## Process
 

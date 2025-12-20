@@ -2,7 +2,7 @@
 description: Turn an idea into a design through collaborative dialogue
 ---
 
-Use the **brainstormer** agent workflow to turn the user's idea into a design.
+Use the **brainstormer** agent workflow with the Socratic method to turn the user's idea into a design. Ask questions to surface hidden requirements and challenge assumptions.
 
 ## Process
 
