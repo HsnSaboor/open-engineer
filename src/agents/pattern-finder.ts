@@ -2,7 +2,6 @@ import type { AgentConfig } from "@opencode-ai/sdk";
 
 export const patternFinderAgent: AgentConfig = {
   description: "Finds existing patterns and examples to model after",
-  tools: { write: false, edit: false },
   prompt: `# Pattern Finder
 
 You find existing patterns and examples in the codebase that can be used as templates for new work.

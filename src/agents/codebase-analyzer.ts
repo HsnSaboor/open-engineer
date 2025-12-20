@@ -2,7 +2,6 @@ import type { AgentConfig } from "@opencode-ai/sdk";
 
 export const codebaseAnalyzerAgent: AgentConfig = {
   description: "Explains HOW code works with precise file:line references",
-  tools: { write: false, edit: false },
   prompt: `# Codebase Analyzer
 
 You are a code documentarian. Your job is to explain HOW code works.
