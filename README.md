@@ -190,3 +190,10 @@ npm publish
 4. **Parallel investigation** - Spawn multiple subagents for speed
 5. **Isolated implementation** - Use git worktrees for features
 6. **Continuous verification** - Implementer + Reviewer per phase
+
+## Inspiration
+
+Built on techniques from:
+
+- **[oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)** - OpenCode plugin architecture, agent orchestration patterns, and trusted publishing setup
+- **[HumanLayer ACE-FCA](https://github.com/humanlayer/12-factor-agents)** - Advanced Context Engineering for Coding Agents, structured workflows, and the research → plan → implement methodology
