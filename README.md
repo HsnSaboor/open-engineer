@@ -1,94 +1,137 @@
 # .opencode
 
-Minimal OpenCode plugin with Brainstorm-Research-Plan-Implement workflow.
+OpenCode plugin with a structured Brainstorm → Research → Plan → Implement workflow.
 
 ## Installation
 
 ```bash
-# Clone the repo
 git clone git@github.com:vtemian/.opencode.git ~/.opencode
-
-# Install and build
 cd ~/.opencode
 bun install
 bun run build
 ```
 
-Add to your `~/.config/opencode/opencode.json`:
+Add to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": [
-    "/path/to/.opencode/dist/index.js"
-  ]
+  "plugin": ["~/.opencode/dist/index.js"]
 }
 ```
 
 ## Workflow
 
 ```
-/brainstorm → /research → /plan → /implement
+Brainstorm → Research → Plan → Implement → Review
 ```
+
+### 1. Brainstorm
+
+Refine rough ideas into fully-formed designs through collaborative questioning.
+
+- One question at a time
+- 2-3 approaches with trade-offs
+- Section-by-section validation
+- Output: `thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md`
+
+### 2. Research
+
+Parallel codebase investigation using specialized subagents:
+
+| Subagent | Purpose |
+|----------|---------|
+| `codebase-locator` | Find WHERE files live (paths, no content) |
+| `codebase-analyzer` | Explain HOW code works (with file:line refs) |
+| `pattern-finder` | Find existing patterns to follow |
+
+Output: `thoughts/shared/research/YYYY-MM-DD-{topic}.md`
+
+### 3. Plan
+
+Create implementation plan with phases and verification steps.
+
+- Get human approval before implementing
+- Output: `thoughts/shared/plans/YYYY-MM-DD-{topic}.md`
+
+### 4. Implement
+
+Execute plan in git worktree for isolation:
+
+```bash
+git worktree add ../{feature} -b feature/{feature}
+```
+
+- Implementer + Reviewer work per phase
+- Commit with descriptive messages
+- Merge when complete
+
+### 5. Handoff
+
+Save/resume session state for continuity:
+
+- `handoff-creator`: Save current session
+- `handoff-resumer`: Resume from handoff
+- Output: `thoughts/shared/handoffs/`
+
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/brainstorm` | Refine ideas into designs through collaborative questioning |
-| `/research` | Investigate codebase with parallel sub-agents |
-| `/plan` | Create detailed implementation plan |
-| `/implement` | Execute plan with parallel implementer + reviewer |
-| `/create-handoff` | Save session state for continuity |
-| `/resume-handoff` | Resume from previous session |
+| `/init` | Initialize project with ARCHITECTURE.md and CODE_STYLE.md |
 
 ## Agents
 
-| Agent | Purpose |
-|-------|---------|
-| `brainstormer` | Refines ideas into designs (one question at a time, YAGNI) |
-| `codebase-locator` | Finds WHERE files live (no content analysis) |
-| `codebase-analyzer` | Explains HOW code works (with file:line refs) |
-| `pattern-finder` | Shows existing patterns to model after |
-| `implementer` | Executes implementation tasks |
-| `reviewer` | Reviews implementation for correctness |
+| Agent | Mode | Model | Purpose |
+|-------|------|-------|---------|
+| Commander | primary | claude-opus-4-5 | Orchestrator, delegates to specialists |
+| Brainstormer | primary | claude-opus-4-5 | Design exploration through questioning |
+| project-initializer | subagent | claude-opus-4-5 | Generate ARCHITECTURE.md and CODE_STYLE.md |
+| codebase-locator | subagent | - | Find file locations |
+| codebase-analyzer | subagent | - | Deep code analysis |
+| pattern-finder | subagent | - | Find existing patterns |
+| implementer | subagent | - | Execute implementation |
+| reviewer | subagent | - | Review correctness |
+| handoff-creator | subagent | - | Save session state |
+| handoff-resumer | subagent | - | Resume from handoff |
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `lsp_hover` | Get type info and docs for a symbol |
-| `lsp_goto_definition` | Find where a symbol is defined |
-| `lsp_find_references` | Find all usages of a symbol |
-| `lsp_document_symbols` | Get all symbols in a file |
-| `lsp_workspace_symbols` | Search symbols across workspace |
 | `ast_grep_search` | AST-aware code pattern search |
 | `ast_grep_replace` | AST-aware code pattern replacement |
+| `look_at` | Screenshot analysis |
+| `background_task` | Run long-running tasks in background |
+| `check_background_task` | Check background task status |
 
 ## Hooks
 
-### Think Mode
-
-Use these keywords to enable extended thinking (32k tokens):
-- "think hard", "think deeply", "think carefully", "let's think"
-
-### Auto-Compact
-
-Automatically summarizes session when hitting token limits.
+| Hook | Description |
+|------|-------------|
+| Think Mode | Keywords like "think hard" enable 32k token thinking budget |
+| Auto-Compact | Summarizes session when hitting token limits |
+| Preemptive Compaction | Warns before context exhaustion |
+| Context Injector | Injects ARCHITECTURE.md, CODE_STYLE.md, .cursorrules |
+| Token-Aware Truncation | Truncates large tool outputs |
+| Context Window Monitor | Tracks token usage |
+| Comment Checker | Validates edit tool comments |
+| Session Recovery | Recovers from crashes |
 
 ## MCP Servers
 
 | Server | Description |
 |--------|-------------|
-| `context7` | Documentation lookup |
+| context7 | Documentation lookup |
 
 ## Structure
 
 ```
 .opencode/
 ├── src/
-│   ├── agents/       # Agent definitions (TypeScript)
-│   ├── tools/        # LSP and AST-grep tools
-│   ├── hooks/        # Auto-compact hook
+│   ├── agents/       # Agent definitions
+│   ├── tools/        # ast-grep, look-at, background-task
+│   ├── hooks/        # Session management hooks
 │   └── index.ts      # Plugin entry
-├── command/          # Slash commands (markdown)
 ├── dist/             # Built plugin
 └── thoughts/         # Artifacts (gitignored)
     └── shared/
@@ -101,16 +144,16 @@ Automatically summarizes session when hitting token limits.
 ## Development
 
 ```bash
-bun install      # Install dependencies
-bun run build    # Build plugin
+bun install       # Install dependencies
+bun run build     # Build plugin
 bun run typecheck # Type check
 ```
 
 ## Philosophy
 
-Inspired by [HumanLayer's ACE-FCA](https://github.com/humanlayer/advanced-context-engineering-for-coding-agents) and [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode).
-
 1. **Brainstorm first** - Refine ideas before coding
 2. **Research before implementing** - Understand the codebase
 3. **Plan with human buy-in** - Get approval before coding
-4. **Parallel verification** - Implementer and reviewer work together
+4. **Parallel investigation** - Spawn multiple subagents for speed
+5. **Isolated implementation** - Use git worktrees for features
+6. **Continuous verification** - Implementer + Reviewer per phase
