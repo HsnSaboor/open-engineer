@@ -5,16 +5,6 @@ import type { McpLocalConfig } from "@opencode-ai/sdk";
 import { agents, PRIMARY_AGENT_NAME } from "./agents";
 
 // Tools
-import {
-  lsp_hover,
-  lsp_goto_definition,
-  lsp_find_references,
-  lsp_document_symbols,
-  lsp_workspace_symbols,
-  lsp_diagnostics,
-  lsp_rename,
-  lsp_code_actions,
-} from "./tools/lsp";
 import { ast_grep_search, ast_grep_replace } from "./tools/ast-grep";
 import { look_at } from "./tools/look-at";
 
@@ -72,14 +62,6 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   return {
     // Tools
     tool: {
-      lsp_hover,
-      lsp_goto_definition,
-      lsp_find_references,
-      lsp_document_symbols,
-      lsp_workspace_symbols,
-      lsp_diagnostics,
-      lsp_rename,
-      lsp_code_actions,
       ast_grep_search,
       ast_grep_replace,
       look_at,

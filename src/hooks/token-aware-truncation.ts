@@ -6,10 +6,6 @@ const TRUNCATABLE_TOOLS = [
   "Grep",
   "glob",
   "Glob",
-  "lsp_find_references",
-  "lsp_document_symbols",
-  "lsp_workspace_symbols",
-  "lsp_diagnostics",
   "ast_grep_search",
 ];
 
