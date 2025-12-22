@@ -2,19 +2,18 @@ import { tool } from "@opencode-ai/plugin/tool";
 
 export function createAskUserTool() {
   return tool({
-    description: `Ask the user a question and wait for their response.
-Use this when you need clarification, want to present options, or need user input before proceeding.
-The user will respond in the chat.`,
+    description: `Ask the user a multiple-choice question. ALWAYS provide options.`,
     args: {
       question: tool.schema.string().describe("The question to ask the user"),
       options: tool.schema
         .array(tool.schema.string())
-        .optional()
-        .describe("Optional list of choices (user can also provide custom answer)"),
+        .min(2)
+        .max(6)
+        .describe("REQUIRED: 2-6 choices for the user to pick from"),
       context: tool.schema
         .string()
         .optional()
-        .describe("Optional context explaining why you're asking"),
+        .describe("Why you're asking (optional)"),
     },
     execute: async (args) => {
       const { question, options, context } = args;
