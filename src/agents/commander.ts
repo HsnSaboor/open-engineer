@@ -115,4 +115,4 @@ export const primaryAgent: AgentConfig = {
   prompt: PROMPT,
 };
 
-export const PRIMARY_AGENT_NAME = process.env.OPENCODE_AGENT_NAME || "Commander";
+export const PRIMARY_AGENT_NAME = process.env.OPENCODE_AGENT_NAME || "Build";

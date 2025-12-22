@@ -87,16 +87,16 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
     },
 
     config: async (config) => {
-      // Add agents
+      // Add agents (plugin agents override defaults)
       config.agent = {
-        ...agents,
         ...config.agent,
+        ...agents,
       };
 
-      // Add MCP servers
+      // Add MCP servers (plugin servers override defaults)
       config.mcp = {
-        ...MCP_SERVERS,
         ...config.mcp,
+        ...MCP_SERVERS,
       };
     },
 
