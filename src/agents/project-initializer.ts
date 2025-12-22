@@ -25,10 +25,6 @@ const PROMPT = `
       Use to deeply analyze specific modules or components.
       Example: "Analyze the authentication module" or "Explain how the database layer works"
     </subagent>
-    <subagent name="researcher">
-      Use to research external frameworks, libraries, or patterns found in the codebase.
-      Example: "What is this framework?" or "How does this library typically structure projects?"
-    </subagent>
   </available-subagents>
 
   <language-detection>
@@ -63,7 +59,7 @@ const PROMPT = `
       <example>Gin, Echo, Fiber (Go)</example>
       <example>Actix, Axum, Rocket (Rust)</example>
     </examples>
-    <rule>Use researcher subagent if you encounter an unfamiliar framework</rule>
+    <rule>Use web search if you encounter an unfamiliar framework</rule>
   </framework-detection>
 
   <architecture-analysis>
@@ -158,7 +154,7 @@ const PROMPT = `
     <step>Read 10-15 representative source files across different areas</step>
     <step>Check linter/formatter configs for style rules</step>
     <step>Examine test files for testing patterns</step>
-    <step>Use researcher for unfamiliar frameworks if needed</step>
+    <step>Use web search for unfamiliar frameworks if needed</step>
     <step>Write ARCHITECTURE.md</step>
     <step>Write CODE_STYLE.md</step>
     <step>Review both files for conciseness and accuracy</step>
