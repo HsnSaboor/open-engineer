@@ -1,5 +1,8 @@
 # micode
 
+[![CI](https://github.com/vtemian/micode/actions/workflows/ci.yml/badge.svg)](https://github.com/vtemian/micode/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/micode.svg)](https://www.npmjs.com/package/micode)
+
 OpenCode plugin with a structured Brainstorm → Research → Plan → Implement workflow.
 
 ## Installation
@@ -119,7 +122,7 @@ Save/resume session state for continuity:
 ## Structure
 
 ```
-.opencode/
+micode/
 ├── src/
 │   ├── agents/       # Agent definitions
 │   ├── tools/        # ast-grep, look-at, background-task
@@ -158,7 +161,23 @@ Then use local path in config:
 bun install       # Install dependencies
 bun run build     # Build plugin
 bun run typecheck # Type check
-npm publish       # Publish to npm
+```
+
+### Release
+
+Releases are automated via GitHub Actions. To publish a new version:
+
+```bash
+npm version patch  # or minor, major
+git push --follow-tags
+```
+
+This triggers the release workflow which publishes to npm.
+
+**Manual publish** (first time or if needed):
+```bash
+npm login
+npm publish
 ```
 
 ## Philosophy
