@@ -2,7 +2,7 @@ import type { AgentConfig } from "@opencode-ai/sdk";
 
 export const brainstormerAgent: AgentConfig = {
   description: "Refines rough ideas into fully-formed designs through collaborative questioning",
-  mode: "subagent",
+  mode: "primary",
   model: "openai/gpt-5.2",
   temperature: 0.9,
   tools: {
