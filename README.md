@@ -78,7 +78,6 @@ Automatically summarizes session when hitting token limits.
 | Server | Description |
 |--------|-------------|
 | `context7` | Documentation lookup |
-| `websearch-exa` | Web search (requires `EXA_API_KEY`) |
 
 ## Structure
 
