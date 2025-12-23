@@ -62,10 +62,89 @@ Execute plan in git worktree for isolation:
 git worktree add ../{feature} -b feature/{feature}
 ```
 
-- **Executor** orchestrates the implement → review cycle automatically
-- Spawns Implementer → waits → spawns Reviewer → loops if changes requested
-- Maximum 3 cycles before escalating to human
-- Commit with descriptive messages when approved
+The **Executor** orchestrates task execution with intelligent parallelization:
+
+#### How It Works
+
+1. **Parse** - Extract individual tasks from the plan
+2. **Analyze** - Build dependency graph between tasks
+3. **Batch** - Group independent tasks for parallel execution
+4. **Execute** - Run implementer→reviewer cycle per task
+5. **Aggregate** - Collect results and report status
+
+#### Dependency Analysis
+
+Tasks are grouped into batches based on their dependencies:
+
+```
+Independent tasks (can parallelize):
+- Modify different files
+- Don't depend on each other's output
+- Don't share state
+
+Dependent tasks (must be sequential):
+- Task B modifies a file Task A creates
+- Task B imports something Task A defines
+- Task B's test relies on Task A's implementation
+```
+
+#### Parallel Execution
+
+Within a batch, all tasks run concurrently by spawning multiple subagents in a single message:
+
+```
+Plan with 6 tasks:
+├── Batch 1 (parallel): Tasks 1, 2, 3 → independent, different files
+│   ├── implementer: task 1 ─┐
+│   ├── implementer: task 2 ─┼─ spawn in ONE message
+│   └── implementer: task 3 ─┘
+│   [wait for all]
+│   ├── reviewer: task 1 ─┐
+│   ├── reviewer: task 2 ─┼─ spawn in ONE message
+│   └── reviewer: task 3 ─┘
+│   [wait for all]
+│
+└── Batch 2 (parallel): Tasks 4, 5, 6 → depend on batch 1
+    └── [same pattern]
+```
+
+#### Per-Task Cycle
+
+Each task gets its own implement→review loop:
+
+1. Spawn implementer with task details
+2. Spawn reviewer to check implementation
+3. If changes requested → re-spawn implementer (max 3 cycles)
+4. Mark as DONE or BLOCKED
+
+#### Example Output
+
+```
+## Execution Complete
+
+**Plan**: thoughts/shared/plans/2024-01-15-auth-feature.md
+**Total tasks**: 6
+**Batches**: 2
+
+### Dependency Analysis
+- Batch 1 (parallel): Tasks 1, 2, 3 - independent, no shared files
+- Batch 2 (parallel): Tasks 4, 5, 6 - depend on batch 1
+
+### Results
+
+| Task | Status | Cycles | Notes |
+|------|--------|--------|-------|
+| 1 | ✅ DONE | 1 | |
+| 2 | ✅ DONE | 2 | Fixed type error |
+| 3 | ✅ DONE | 1 | |
+| 4 | ✅ DONE | 1 | |
+| 5 | ❌ BLOCKED | 3 | Test assertion failing |
+| 6 | ✅ DONE | 1 | |
+
+### Summary
+- Completed: 5/6 tasks
+- Blocked: 1 task needs human intervention
+```
 
 ### 5. Handoff
 
