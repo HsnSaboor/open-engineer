@@ -30,7 +30,7 @@
     "url": "https://github.com/vtemian/micode/issues"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "1.0.180"
+    "@opencode-ai/plugin": "1.0.191"
   },
   "devDependencies": {
     "bun-types": "latest",

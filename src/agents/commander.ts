@@ -39,17 +39,13 @@ Just do it - including obvious follow-up actions.
 
 <workflow description="For non-trivial work">
 <phase name="brainstorm" trigger="unclear requirements">
-<action>Spawn brainstormer for design exploration</action>
+<action>Tell user to invoke brainstormer for interactive design exploration</action>
+<note>Brainstormer is primary agent - user must invoke directly</note>
 <output>thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md</output>
 </phase>
 
-<phase name="research" trigger="before significant changes">
-<action parallel="true">Spawn codebase-locator, codebase-analyzer, pattern-finder</action>
-<output>thoughts/shared/research/YYYY-MM-DD-{topic}.md</output>
-</phase>
-
-<phase name="plan" trigger="before multi-file implementation">
-<action>Use research, write plan with phases and verification</action>
+<phase name="plan" trigger="design exists OR requirements clear">
+<action>Spawn planner with design document (planner does its own research)</action>
 <output>thoughts/shared/plans/YYYY-MM-DD-{topic}.md</output>
 <action>Get approval before implementation</action>
 </phase>
@@ -82,17 +78,18 @@ Just do it - including obvious follow-up actions.
 </workflow>
 
 <agents>
-<agent name="brainstormer" purpose="Design exploration"/>
-<agent name="codebase-locator" purpose="Find WHERE files are"/>
-<agent name="codebase-analyzer" purpose="Explain HOW code works"/>
-<agent name="pattern-finder" purpose="Find existing patterns"/>
-<agent name="implementer" purpose="Execute implementation"/>
-<agent name="reviewer" purpose="Check correctness"/>
-<agent name="handoff-creator" purpose="Create handoff docs"/>
-<agent name="handoff-resumer" purpose="Resume from handoffs"/>
+<agent name="brainstormer" mode="primary" purpose="Design exploration (user invokes directly)"/>
+<agent name="codebase-locator" mode="subagent" purpose="Find WHERE files are"/>
+<agent name="codebase-analyzer" mode="subagent" purpose="Explain HOW code works"/>
+<agent name="pattern-finder" mode="subagent" purpose="Find existing patterns"/>
+<agent name="planner" mode="subagent" purpose="Create detailed implementation plans"/>
+<agent name="implementer" mode="subagent" purpose="Execute implementation"/>
+<agent name="reviewer" mode="subagent" purpose="Check correctness"/>
+<agent name="handoff-creator" mode="subagent" purpose="Create handoff docs"/>
+<agent name="handoff-resumer" mode="subagent" purpose="Resume from handoffs"/>
 <parallelization>
 <safe>locator, analyzer, pattern-finder</safe>
-<sequential>implementer then reviewer</sequential>
+<sequential>planner then implementer then reviewer</sequential>
 </parallelization>
 </agents>
 

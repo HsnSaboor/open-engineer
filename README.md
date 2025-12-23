@@ -46,8 +46,11 @@ Output: `thoughts/shared/research/YYYY-MM-DD-{topic}.md`
 
 ### 3. Plan
 
-Create implementation plan with phases and verification steps.
+Transform validated designs into comprehensive implementation plans.
 
+- Bite-sized tasks (2-5 minutes each)
+- Exact file paths, complete code examples
+- TDD workflow: failing test → verify fail → implement → verify pass → commit
 - Get human approval before implementing
 - Output: `thoughts/shared/plans/YYYY-MM-DD-{topic}.md`
 
@@ -87,6 +90,7 @@ Save/resume session state for continuity:
 | codebase-locator | subagent | - | Find file locations |
 | codebase-analyzer | subagent | - | Deep code analysis |
 | pattern-finder | subagent | - | Find existing patterns |
+| planner | subagent | claude-opus-4-5 | Create detailed implementation plans |
 | implementer | subagent | - | Execute implementation |
 | reviewer | subagent | - | Review correctness |
 | handoff-creator | subagent | - | Save session state |

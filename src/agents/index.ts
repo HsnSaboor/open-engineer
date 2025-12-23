@@ -3,6 +3,7 @@ import { brainstormerAgent } from "./brainstormer";
 import { codebaseLocatorAgent } from "./codebase-locator";
 import { codebaseAnalyzerAgent } from "./codebase-analyzer";
 import { patternFinderAgent } from "./pattern-finder";
+import { plannerAgent } from "./planner";
 import { implementerAgent } from "./implementer";
 import { reviewerAgent } from "./reviewer";
 import { handoffCreatorAgent } from "./handoff-creator";
@@ -16,6 +17,7 @@ export const agents: Record<string, AgentConfig> = {
   "codebase-locator": codebaseLocatorAgent,
   "codebase-analyzer": codebaseAnalyzerAgent,
   "pattern-finder": patternFinderAgent,
+  planner: plannerAgent,
   implementer: implementerAgent,
   reviewer: reviewerAgent,
   "handoff-creator": handoffCreatorAgent,
@@ -30,6 +32,7 @@ export {
   codebaseLocatorAgent,
   codebaseAnalyzerAgent,
   patternFinderAgent,
+  plannerAgent,
   implementerAgent,
   reviewerAgent,
   handoffCreatorAgent,
