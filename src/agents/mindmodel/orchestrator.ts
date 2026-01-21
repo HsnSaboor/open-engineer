@@ -1,6 +1,10 @@
 // src/agents/mindmodel/orchestrator.ts
 import type { AgentConfig } from "@opencode-ai/sdk";
 
+import { getOrGenerateProjectName } from "../../utils/project-config";
+
+const PROJECT_NAME = getOrGenerateProjectName(process.cwd());
+
 const PROMPT = `<environment>
 You are running as part of the "open-engineer" OpenCode plugin.
 You are the ORCHESTRATOR for mindmodel v2 generation.
@@ -38,7 +42,7 @@ Call ALL spawn_agent for a phase in a SINGLE message = parallel execution.
 <process>
 1. STEP 0: Register current project as BTCA resource.
    - Use 'btca_resource_add' tool.
-   - name: "project"
+   - name: "${PROJECT_NAME}"
    - path: "."
    - This ensures 'btca_ask' works for subsequent analysis.
 

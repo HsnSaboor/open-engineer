@@ -29,6 +29,7 @@ import { createOcttoTools, createSessionStore } from "./tools/octto";
 import { createPtyTools, PTYManager } from "./tools/pty";
 import { createSpawnAgentTool } from "./tools/spawn-agent";
 import { log } from "./utils/logger";
+import { getOrGenerateProjectName } from "./utils/project-config";
 
 // Think mode: detect keywords and enable extended thinking
 const THINK_KEYWORDS = [
@@ -258,6 +259,15 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
 
       // Merge user config overrides into plugin agents
       const mergedAgents = mergeAgentConfigs(agents, userConfig);
+
+      // Inject project name into researcher prompt
+      const projectName = getOrGenerateProjectName(ctx.directory);
+      if (mergedAgents.researcher && mergedAgents.researcher.prompt) {
+        mergedAgents.researcher = {
+          ...mergedAgents.researcher,
+          prompt: mergedAgents.researcher.prompt.replace('tech="project"', `tech="${projectName}"`),
+        };
+      }
 
       // Add our agents - our agents override OpenCode defaults
       config.agent = {
