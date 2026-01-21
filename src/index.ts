@@ -21,6 +21,7 @@ import { artifact_search } from "./tools/artifact-search";
 // Tools
 import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tools/ast-grep";
 import { btca_ask, checkBtcaAvailable } from "./tools/btca";
+import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
 import { look_at } from "./tools/look-at";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createOcttoTools, createSessionStore } from "./tools/octto";
@@ -234,6 +235,8 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       ast_grep_search,
       ast_grep_replace,
       btca_ask,
+      btca_resource_add,
+      btca_resource_list,
       look_at,
       artifact_search,
       milestone_artifact_search,

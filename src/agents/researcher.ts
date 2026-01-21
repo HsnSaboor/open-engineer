@@ -6,6 +6,8 @@ export const researcherAgent: AgentConfig = {
   temperature: 0.4,
   tools: {
     btca_ask: true,
+    btca_resource_add: true,
+    btca_resource_list: true,
     // Enable wildcard access for MCP tools
     "anti-search_*": true,
     "context7_*": true,

@@ -36,7 +36,13 @@ Call ALL spawn_agent for a phase in a SINGLE message = parallel execution.
 </critical-rule>
 
 <process>
-1. PHASE 1: In ONE message, call spawn_agent 4 times for:
+1. STEP 0: Register current project as BTCA resource.
+   - Use 'btca_resource_add' tool.
+   - name: "project"
+   - path: "."
+   - This ensures 'btca_ask' works for subsequent analysis.
+
+2. PHASE 1: In ONE message, call spawn_agent 4 times for:
    - mm-stack-detector
    - mm-dependency-mapper
    - mm-convention-extractor
@@ -44,26 +50,26 @@ Call ALL spawn_agent for a phase in a SINGLE message = parallel execution.
 
    All 4 run in parallel. Results available when message completes.
 
-2. PHASE 2: In ONE message, call spawn_agent 3 times for:
+3. PHASE 2: In ONE message, call spawn_agent 3 times for:
    - mm-code-clusterer (provide Phase 1 findings as context)
    - mm-pattern-discoverer (provide stack info as context)
    - mm-anti-pattern-detector (provide pattern findings as context)
 
    All 3 run in parallel. Results available when message completes.
 
-3. PHASE 3: In ONE message, call spawn_agent N times (one per category):
+4. PHASE 3: In ONE message, call spawn_agent N times (one per category):
    - mm-example-extractor for each discovered category
    - Include category name + patterns as context in each call
 
    All extractors run in parallel. Results available when message completes.
 
-4. PHASE 4: Call spawn_agent once for mm-constraint-writer with ALL outputs:
+5. PHASE 4: Call spawn_agent once for mm-constraint-writer with ALL outputs:
    - Stack info, dependencies, conventions, domain terms
    - Code patterns, anti-patterns, extracted examples
 
    This writes the final .mindmodel/ structure.
 
-5. Verify: Check .mindmodel/manifest.yaml and system.md exist.
+6. Verify: Check .mindmodel/manifest.yaml and system.md exist.
 </process>
 
 <output>
@@ -88,6 +94,7 @@ export const mindmodelOrchestratorAgent: AgentConfig = {
   maxTokens: 32000,
   tools: {
     bash: false,
+    btca_resource_add: true,
   },
   prompt: PROMPT,
 };
