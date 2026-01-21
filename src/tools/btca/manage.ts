@@ -19,7 +19,7 @@ export const btca_resource_add = tool({
     name: tool.schema.string(),
     path: tool.schema.string(),
   },
-  execute: async ({ name, path }, ctx: ToolContext) => {
+  execute: async ({ name, path }, _ctx: ToolContext) => {
     try {
       log.info("btca", `Registering resource '${name}' at path '${path}'`);
 
@@ -47,7 +47,7 @@ export const btca_resource_add = tool({
               return `Resource '${name}' already exists.`;
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // Failed to parse or process list, proceed to add command as fallback
           log.warn("btca", "Failed to parse resources list, proceeding with add.");
         }
@@ -80,7 +80,7 @@ export const btca_resource_add = tool({
 export const btca_resource_list = tool({
   description: "List all configured BTCA resources",
   args: {},
-  execute: async (_, ctx: ToolContext) => {
+  execute: async (_, _ctx: ToolContext) => {
     try {
       const result = await $`btca config resources list`.nothrow().quiet();
       if (result.exitCode !== 0) {

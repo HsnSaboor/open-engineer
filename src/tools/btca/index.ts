@@ -20,7 +20,7 @@ export async function checkBtcaAvailable(): Promise<{ available: boolean; messag
   };
 }
 
-const BTCA_TIMEOUT_MS = 120000; // 2 minutes for long clones
+const BTCA_TIMEOUT_MS = 300000; // 5 minutes for long clones
 
 async function runBtca(args: string[]): Promise<{ output: string; error?: string }> {
   try {
@@ -72,9 +72,14 @@ export const btca_ask = tool({
     question: tool.schema.string().describe("Question to ask about the library source code"),
   },
   execute: async (args) => {
-    const result = await runBtca(["ask", "-t", args.tech, "-q", args.question]);
+    const result = await runBtca(["ask", "--resource", args.tech, "--question", args.question]);
 
     if (result.error) {
+      if (result.error.includes("Unknown resource")) {
+        const listResult = await runBtca(["config", "resources", "list"]);
+        const resources = listResult.output || "No resources configured.";
+        return `Error: ${result.error}\n\nAvailable resources:\n${resources}`;
+      }
       return `Error: ${result.error}`;
     }
 

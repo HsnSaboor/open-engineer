@@ -9,7 +9,8 @@ export const researcherAgent: AgentConfig = {
     btca_resource_add: true,
     btca_resource_list: true,
     // Enable wildcard access for MCP tools
-    "anti-search_*": true,
+    search_web: true,
+    read_url_content: true,
     "context7_*": true,
   },
   prompt: `<environment>
@@ -31,13 +32,13 @@ You do NOT guess. You do NOT optimize for "easiest". You optimize for "Best Engi
 
 <workflow>
   <phase name="1. Discovery (Broad)">
-    <action>Use 'anti-search_search' to find libraries/tools for the requirement.</action>
+    <action>Use 'search_web' to find libraries/tools for the requirement.</action>
     <action>Look for: specific libraries, patterns, or algorithms.</action>
     <constraint>Do NOT filter yet. Gather all viable candidates.</constraint>
   </phase>
 
   <phase name="2. Verification (Deep)">
-    <action>For top candidates, use 'context7_*' or 'anti-search_read_url' to verify APIs.</action>
+    <action>For top candidates, use 'context7_*' or 'read_url_content' to verify APIs.</action>
     <action>Check: Is it maintained? Does it support our stack? What are the breaking changes?</action>
   </phase>
 

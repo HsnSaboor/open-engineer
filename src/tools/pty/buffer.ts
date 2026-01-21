@@ -2,7 +2,7 @@
 import type { SearchMatch } from "./types";
 
 const parsed = parseInt(process.env.PTY_MAX_BUFFER_LINES || "50000", 10);
-const DEFAULT_MAX_LINES = isNaN(parsed) ? 50000 : parsed;
+const DEFAULT_MAX_LINES = Number.isNaN(parsed) ? 50000 : parsed;
 
 export class RingBuffer {
   private lines: string[] = [];

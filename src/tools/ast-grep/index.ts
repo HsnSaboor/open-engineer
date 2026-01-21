@@ -7,14 +7,14 @@ import { tool } from "@opencode-ai/plugin/tool";
  * Returns installation instructions if not found.
  */
 export async function checkAstGrepAvailable(): Promise<{ available: boolean; message?: string }> {
-  const sgPath = which("sg");
+  const sgPath = which("ast-grep");
   if (sgPath) {
     return { available: true };
   }
   return {
     available: false,
     message:
-      "ast-grep CLI (sg) not found. AST-aware search/replace will not work.\n" +
+      "ast-grep CLI not found. AST-aware search/replace will not work.\n" +
       "Install with one of:\n" +
       "  npm install -g @ast-grep/cli\n" +
       "  cargo install ast-grep --locked\n" +
@@ -58,7 +58,7 @@ interface Match {
 
 async function runSg(args: string[]): Promise<{ matches: Match[]; error?: string }> {
   try {
-    const proc = spawn(["sg", ...args], {
+    const proc = spawn(["ast-grep", ...args], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -135,7 +135,7 @@ export const ast_grep_search = tool({
     paths: tool.schema.array(tool.schema.string()).optional().describe("Paths to search"),
   },
   execute: async (args) => {
-    const sgArgs = ["run", "-p", args.pattern, "--lang", args.lang, "--json=compact"];
+    const sgArgs = ["-p", args.pattern, "--lang", args.lang, "--json=compact"];
     if (args.paths?.length) {
       sgArgs.push(...args.paths);
     } else {
@@ -161,7 +161,7 @@ export const ast_grep_replace = tool({
     apply: tool.schema.boolean().optional().describe("Apply changes (default: false, dry-run)"),
   },
   execute: async (args) => {
-    const sgArgs = ["run", "-p", args.pattern, "-r", args.rewrite, "--lang", args.lang, "--json=compact"];
+    const sgArgs = ["-p", args.pattern, "-r", args.rewrite, "--lang", args.lang, "--json=compact"];
 
     if (args.apply) {
       sgArgs.push("--update-all");

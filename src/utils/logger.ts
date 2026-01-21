@@ -8,7 +8,7 @@ let opencodeClient: OpencodeClient | null = null;
 
 /**
  * Initialize the logger with the OpenCode client to enable background logging.
- * If not initialized, it falls back to console.log (useful for startup/tests).
+ * If not initialized, logs are ignored to prevent leaking into the UI.
  */
 export function setLoggerClient(client: OpencodeClient): void {
   opencodeClient = client;
@@ -36,8 +36,6 @@ export const log = {
           },
         })
         .catch(() => {});
-    } else {
-      console.log(`[${module}] ${message}`);
     }
   },
 
@@ -56,8 +54,6 @@ export const log = {
           },
         })
         .catch(() => {});
-    } else {
-      console.log(`[${module}] ${message}`);
     }
   },
 
@@ -76,8 +72,6 @@ export const log = {
           },
         })
         .catch(() => {});
-    } else {
-      console.warn(`[${module}] ${message}`);
     }
   },
 
@@ -107,12 +101,6 @@ export const log = {
           },
         })
         .catch(() => {});
-    } else {
-      if (error !== undefined) {
-        console.error(`[${module}] ${message}`, error);
-      } else {
-        console.error(`[${module}] ${message}`);
-      }
     }
   },
 };

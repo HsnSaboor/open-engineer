@@ -72,7 +72,20 @@ export class ArtifactIndex {
       mkdirSync(dir, { recursive: true });
     }
 
-    this.db = new Database(this.dbPath);
+    try {
+      this.db = new Database(this.dbPath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("libsqlite3") || message.includes("shared library")) {
+        throw new Error(
+          `SQLite shared library not found. Please install sqlite3 on your system.\n` +
+            `On Ubuntu/Debian: sudo apt-get install libsqlite3-dev\n` +
+            `On macOS: brew install sqlite\n` +
+            `Original error: ${message}`,
+        );
+      }
+      throw error;
+    }
 
     // Load and execute schema
     const schemaPath = join(dirname(import.meta.path), "schema.sql");
