@@ -28,7 +28,7 @@ import { createOcttoTools, createSessionStore } from "./tools/octto";
 // PTY System
 import { createPtyTools, PTYManager } from "./tools/pty";
 import { createSpawnAgentTool } from "./tools/spawn-agent";
-import { log } from "./utils/logger";
+import { log, setLoggerClient } from "./utils/logger";
 import { getOrGenerateProjectName } from "./utils/project-config";
 
 // Think mode: detect keywords and enable extended thinking
@@ -67,6 +67,9 @@ if (process.env.FIRECRAWL_API_KEY) {
 }
 
 const OpenCodeConfigPlugin: Plugin = async (ctx) => {
+  // Initialize background logger
+  setLoggerClient(ctx.client);
+
   // Validate external tool dependencies at startup
   const astGrepStatus = await checkAstGrepAvailable();
   if (!astGrepStatus.available) {
@@ -262,7 +265,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
 
       // Inject project name into researcher prompt
       const projectName = getOrGenerateProjectName(ctx.directory);
-      if (mergedAgents.researcher && mergedAgents.researcher.prompt) {
+      if (mergedAgents.researcher?.prompt) {
         mergedAgents.researcher = {
           ...mergedAgents.researcher,
           prompt: mergedAgents.researcher.prompt.replace('tech="project"', `tech="${projectName}"`),

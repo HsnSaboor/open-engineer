@@ -126,29 +126,28 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
           return;
         }
 
-        log.info("mindmodel", `Classifying task: "${task.slice(0, 100)}..."`);
-
         // Set flag before classification to prevent recursive calls
         isClassifying = true;
 
         try {
+          await log.info("mindmodel", "Classifying task for injection", { task: task.slice(0, 500) });
           // Classify the task
           const classifierPrompt = buildClassifierPrompt(task, mindmodel.manifest);
           const classifierResponse = await classifyFn(classifierPrompt);
           const categories = parseClassifierResponse(classifierResponse, mindmodel.manifest);
 
           if (categories.length === 0) {
-            log.info("mindmodel", "No matching categories found");
+            await log.debug("mindmodel", "No matching categories found");
             classifiedTasks.set(taskHash, ""); // Cache empty result
             return;
           }
 
-          log.info("mindmodel", `Matched categories: ${categories.join(", ")}`);
+          await log.info("mindmodel", "Matched categories for injection", { categories });
 
           // Load and format examples
           const examples = await loadExamples(mindmodel, categories);
           if (examples.length === 0) {
-            log.info("mindmodel", "No examples found for categories");
+            await log.debug("mindmodel", "No examples found for categories", { categories });
             classifiedTasks.set(taskHash, ""); // Cache empty result
             return;
           }
@@ -158,14 +157,14 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
           // Store for the system transform hook and cache for future requests
           pendingInjection = formatted;
           classifiedTasks.set(taskHash, formatted);
-          log.info("mindmodel", `Prepared ${examples.length} examples for injection`);
+          await log.info("mindmodel", "Prepared examples for injection", { count: examples.length });
         } finally {
           // Always reset the flag
           isClassifying = false;
         }
       } catch (error) {
         isClassifying = false;
-        log.warn(
+        await log.warn(
           "mindmodel",
           `Failed to prepare examples: ${error instanceof Error ? error.message : "unknown error"}`,
         );
@@ -182,7 +181,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
 
       // Prepend to system prompt
       output.system.unshift(injection);
-      log.info("mindmodel", "Injected examples into system prompt");
+      await log.debug("mindmodel", "Injected examples into system prompt");
     },
   };
 }

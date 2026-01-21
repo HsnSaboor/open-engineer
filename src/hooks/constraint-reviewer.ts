@@ -116,7 +116,9 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
           throw error;
         }
         // Log but don't block on review failures
-        log.warn("mindmodel", `Review failed: ${error instanceof Error ? error.message : "unknown"}`);
+        await log.warn("mindmodel", "Constraint review failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     },
 
@@ -136,7 +138,7 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
         const reason = overrideMatch[1].trim();
         await logOverride(ctx.directory, reason);
 
-        log.info("mindmodel", `Override activated: ${reason}`);
+        await log.info("mindmodel", "Constraint review override activated", { reason });
       }
     },
 
