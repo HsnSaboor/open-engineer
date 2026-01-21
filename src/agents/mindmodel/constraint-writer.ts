@@ -12,6 +12,10 @@ Take analysis outputs from other agents and assemble them into the .mindmodel/ d
 2. Write constraint files with rules, examples, and anti-patterns
 3. Generate manifest.yaml with all categories
 4. Create system.md overview
+5. GENERATE LEGACY SUMMARIES (Crucial):
+   - ARCHITECTURE.md: Summary of stack, architecture, and domain.
+   - CODE_STYLE.md: Summary of style, conventions, and patterns.
+   - .open-engineer/GUARDRAILS.md: Append any CRITICAL anti-patterns or hard constraints found.
 </purpose>
 
 <input>
@@ -107,6 +111,8 @@ categories:
 - Keep each file focused and concise
 - Include 2-3 examples and 1-2 anti-patterns per file
 - Ensure manifest.yaml lists all created files
+- Write ARCHITECTURE.md and CODE_STYLE.md in the root directory
+- Update .open-engineer/GUARDRAILS.md if critical constraints exist
 </rules>`;
 
 export const constraintWriterAgent: AgentConfig = {
@@ -119,6 +125,7 @@ export const constraintWriterAgent: AgentConfig = {
     edit: true,
     bash: false,
     task: false,
+    btca_resource_add: false, // Not needed here, handled by dependency-mapper
   },
   prompt: PROMPT,
 };

@@ -27,6 +27,12 @@ Analyze imports across the codebase to identify:
    - "Always use X instead of Y"
    - "Import from barrel file, not direct path"
    - "Prefer internal wrapper over raw library"
+
+7. AUTO-INDEXING: For major "Approved" external dependencies:
+   - Call 'btca_resource_list' to see what is already indexed.
+   - For missing major frameworks (React, Django, etc.), call 'btca_resource_add'.
+   - Use TYPE: 'git' and URL: (find official git repo url).
+   - Name it canonically (e.g., 'react', 'django').
 </process>
 
 <output-format>
@@ -73,6 +79,8 @@ export const dependencyMapperAgent: AgentConfig = {
     edit: false,
     bash: false,
     task: false,
+    btca_resource_add: true,
+    btca_resource_list: true,
   },
   prompt: PROMPT,
 };
