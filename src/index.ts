@@ -68,12 +68,12 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   // Validate external tool dependencies at startup
   const astGrepStatus = await checkAstGrepAvailable();
   if (!astGrepStatus.available) {
-    console.warn(`[micode] ${astGrepStatus.message}`);
+    console.warn(`[open-engineer] ${astGrepStatus.message}`);
   }
 
   const btcaStatus = await checkBtcaAvailable();
   if (!btcaStatus.available) {
-    console.warn(`[micode] ${btcaStatus.message}`);
+    console.warn(`[open-engineer] ${btcaStatus.message}`);
   }
 
   // Load user config for temperature/maxTokens overrides (model overrides not supported)

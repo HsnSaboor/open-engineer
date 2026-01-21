@@ -76,7 +76,7 @@ describe("config utility", () => {
 
     it("should have rootContextFiles", async () => {
       const { config } = await import("../../src/utils/config");
-      expect(config.paths.rootContextFiles).toEqual(["README.md"]);
+      expect(config.paths.rootContextFiles).toEqual(["README.md", ".open-engineer/GUARDRAILS.md"]);
     });
 
     it("should have dirContextFiles", async () => {

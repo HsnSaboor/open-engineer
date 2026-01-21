@@ -6,7 +6,7 @@
 
 **Architecture:** Extend existing mindmodel infrastructure with 7 new agents, enhanced manifest schema, constraint reviewer hook, and enforcement flow.
 
-**Tech Stack:** TypeScript, valibot for schemas, micode plugin hooks, subagent orchestration
+**Tech Stack:** TypeScript, valibot for schemas, open-engineer plugin hooks, subagent orchestration
 
 ---
 
@@ -57,7 +57,7 @@ categories:
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/types.test.ts`
 Expected: FAIL - group property not in schema
 
 **Step 3: Update schema**
@@ -90,7 +90,7 @@ export function parseManifest(yamlContent: string): MindmodelManifest {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/types.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -164,7 +164,7 @@ if err != nil {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/types.test.ts`
 Expected: FAIL - parseConstraintFile not defined
 
 **Step 3: Implement constraint file parser**
@@ -243,7 +243,7 @@ function extractCodeBlocks(content: string, sectionHeader: string): ConstraintEx
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/types.test.ts`
 Expected: PASS
 
 **Step 5: Update exports in index**
@@ -339,7 +339,7 @@ describe("dependency-mapper agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/dependency-mapper.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/dependency-mapper.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -349,7 +349,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - mapping dependencies across the codebase.
 </environment>
 
@@ -427,7 +427,7 @@ export const dependencyMapperAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/dependency-mapper.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/dependency-mapper.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -472,7 +472,7 @@ describe("convention-extractor agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/convention-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/convention-extractor.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -482,7 +482,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - extracting code conventions.
 </environment>
 
@@ -575,7 +575,7 @@ export const conventionExtractorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/convention-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/convention-extractor.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -620,7 +620,7 @@ describe("domain-extractor agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/domain-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/domain-extractor.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -630,7 +630,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - extracting business domain terminology.
 </environment>
 
@@ -707,7 +707,7 @@ export const domainExtractorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/domain-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/domain-extractor.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -752,7 +752,7 @@ describe("code-clusterer agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/code-clusterer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/code-clusterer.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -762,7 +762,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - clustering similar code patterns.
 </environment>
 
@@ -862,7 +862,7 @@ export const codeClustererAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/code-clusterer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/code-clusterer.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -907,7 +907,7 @@ describe("anti-pattern-detector agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/anti-pattern-detector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/anti-pattern-detector.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -917,7 +917,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - detecting anti-patterns and inconsistencies.
 </environment>
 
@@ -1012,7 +1012,7 @@ export const antiPatternDetectorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/anti-pattern-detector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/anti-pattern-detector.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -1056,7 +1056,7 @@ describe("constraint-writer agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/constraint-writer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/constraint-writer.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -1066,7 +1066,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - writing the final .mindmodel/ structure.
 </environment>
 
@@ -1188,7 +1188,7 @@ export const constraintWriterAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/constraint-writer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/constraint-writer.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -1233,7 +1233,7 @@ describe("constraint-reviewer agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/constraint-reviewer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/constraint-reviewer.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement agent**
@@ -1243,7 +1243,7 @@ Expected: FAIL - module not found
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for constraint enforcement - reviewing generated code.
 </environment>
 
@@ -1327,7 +1327,7 @@ export const constraintReviewerAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/constraint-reviewer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/constraint-reviewer.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -1405,7 +1405,7 @@ import {
 
 **Step 2: Run tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test`
 Expected: All tests pass
 
 **Step 3: Commit**
@@ -1432,7 +1432,7 @@ git commit -m "feat(mindmodel): register all v2 agents"
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are the ORCHESTRATOR for mindmodel v2 generation.
 </environment>
 
@@ -1549,7 +1549,7 @@ it("should reference all v2 phase agents", () => {
 
 **Step 3: Run tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/agents/mindmodel/orchestrator.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/agents/mindmodel/orchestrator.test.ts`
 Expected: PASS
 
 **Step 4: Commit**
@@ -1623,7 +1623,7 @@ describe("parseReviewResponse", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/review.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/review.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement**
@@ -1701,7 +1701,7 @@ export function formatViolationsForUser(violations: Violation[]): string {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/mindmodel/review.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/mindmodel/review.test.ts`
 Expected: PASS
 
 **Step 5: Export from index**
@@ -1807,7 +1807,7 @@ describe("createConstraintReviewerHook", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/hooks/constraint-reviewer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/hooks/constraint-reviewer.test.ts`
 Expected: FAIL - module not found
 
 **Step 3: Implement hook**
@@ -1997,7 +1997,7 @@ export class ConstraintViolationError extends Error {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/hooks/constraint-reviewer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/hooks/constraint-reviewer.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -2088,7 +2088,7 @@ import { createConstraintReviewerHook } from "./hooks/constraint-reviewer";
 
 **Step 4: Run tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test`
 Expected: All tests pass
 
 **Step 5: Commit**
@@ -2255,7 +2255,7 @@ const x = undefined;
 
 **Step 2: Run test**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test -- tests/integration/mindmodel-v2.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test -- tests/integration/mindmodel-v2.test.ts`
 Expected: PASS
 
 **Step 3: Commit**
@@ -2271,12 +2271,12 @@ git commit -m "test(mindmodel): add v2 integration tests"
 
 **Step 1: Run all tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npm test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npm test`
 Expected: All tests pass
 
 **Step 2: Run TypeScript check**
 
-Run: `cd /Users/whitemonk/projects/config/micode && npx tsc --noEmit`
+Run: `cd /Users/whitemonk/projects/config/open-engineer && npx tsc --noEmit`
 Expected: No errors
 
 **Step 3: Final commit if any fixes needed**

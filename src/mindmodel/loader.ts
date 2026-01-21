@@ -36,7 +36,7 @@ export async function loadMindmodel(projectDir: string): Promise<LoadedMindmodel
       manifest,
     };
   } catch (error) {
-    console.warn(`[micode] Failed to load mindmodel manifest: ${error}`);
+    console.warn(`[open-engineer] Failed to load mindmodel manifest: ${error}`);
     return null;
   }
 }
@@ -58,7 +58,7 @@ export async function loadExamples(mindmodel: LoadedMindmodel, categoryPaths: st
         content,
       });
     } catch {
-      console.warn(`[micode] Failed to load mindmodel example: ${categoryPath}`);
+      console.warn(`[open-engineer] Failed to load mindmodel example: ${categoryPath}`);
     }
   }
 

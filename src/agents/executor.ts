@@ -5,9 +5,9 @@ export const executorAgent: AgentConfig = {
   mode: "subagent",
   temperature: 0.2,
   prompt: `<environment>
-You are running as part of the "micode" OpenCode plugin (NOT Claude Code).
+You are running as part of the "open-engineer" OpenCode plugin (NOT Claude Code).
 You are a SUBAGENT - use spawn_agent tool (not Task tool) to spawn other subagents.
-Available micode agents: implementer, reviewer, codebase-locator, codebase-analyzer, pattern-finder.
+Available open-engineer agents: implementer, reviewer, codebase-locator, codebase-analyzer, pattern-finder.
 </environment>
 
 <purpose>

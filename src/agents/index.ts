@@ -26,10 +26,12 @@ import { octtoAgent } from "./octto";
 import { patternFinderAgent } from "./pattern-finder";
 import { plannerAgent } from "./planner";
 import { probeAgent } from "./probe";
+import { researcherAgent } from "./researcher";
 import { reviewerAgent } from "./reviewer";
 
 export const agents: Record<string, AgentConfig> = {
   [PRIMARY_AGENT_NAME]: { ...primaryAgent, model: "openai/gpt-5.2-codex" },
+  researcher: { ...researcherAgent, model: "openai/gpt-5.2-codex" },
   brainstormer: { ...brainstormerAgent, model: "openai/gpt-5.2-codex" },
   bootstrapper: { ...bootstrapperAgent, model: "openai/gpt-5.2-codex" },
   "codebase-locator": { ...codebaseLocatorAgent, model: "openai/gpt-5.2-codex" },
@@ -74,4 +76,5 @@ export {
   artifactSearcherAgent,
   octtoAgent,
   probeAgent,
+  researcherAgent,
 };

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Integrate mindmodel (few-shot learning through selective context injection) into micode, replacing ARCHITECTURE.md + CODE_STYLE.md with a structured `.mindmodel/` directory containing categorized code examples.
+**Goal:** Integrate mindmodel (few-shot learning through selective context injection) into open-engineer, replacing ARCHITECTURE.md + CODE_STYLE.md with a structured `.mindmodel/` directory containing categorized code examples.
 
 **Architecture:** A new hook (`mindmodel-injector`) classifies incoming tasks using a fast LLM call, then injects relevant examples from `.mindmodel/` into the agent's context. The `/init` command is migrated to generate `.mindmodel/` using a multi-agent workflow with parallel subagents for discovery, extraction, and annotation.
 
@@ -16,13 +16,13 @@
 
 **Step 1: Install yaml package**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun add yaml`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun add yaml`
 Expected: Package added to dependencies
 
 **Step 2: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add package.json bun.lock && git commit -m "chore: add yaml dependency for mindmodel"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add package.json bun.lock && git commit -m "chore: add yaml dependency for mindmodel"
 ```
 
 ---
@@ -73,7 +73,7 @@ categories: []
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/types.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -105,13 +105,13 @@ export function parseManifest(yamlContent: string): MindmodelManifest {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/types.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/types.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/mindmodel/types.ts tests/mindmodel/types.test.ts && git commit -m "feat(mindmodel): add types and manifest schema"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/mindmodel/types.ts tests/mindmodel/types.test.ts && git commit -m "feat(mindmodel): add types and manifest schema"
 ```
 
 ---
@@ -210,7 +210,7 @@ categories:
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/loader.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/loader.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -252,7 +252,7 @@ export async function loadMindmodel(projectDir: string): Promise<LoadedMindmodel
       manifest,
     };
   } catch (error) {
-    console.warn(`[micode] Failed to load mindmodel manifest: ${error}`);
+    console.warn(`[open-engineer] Failed to load mindmodel manifest: ${error}`);
     return null;
   }
 }
@@ -277,7 +277,7 @@ export async function loadExamples(
         content,
       });
     } catch {
-      console.warn(`[micode] Failed to load mindmodel example: ${categoryPath}`);
+      console.warn(`[open-engineer] Failed to load mindmodel example: ${categoryPath}`);
     }
   }
 
@@ -287,13 +287,13 @@ export async function loadExamples(
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/loader.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/loader.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/mindmodel/loader.ts tests/mindmodel/loader.test.ts && git commit -m "feat(mindmodel): add loader for .mindmodel directory"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/mindmodel/loader.ts tests/mindmodel/loader.test.ts && git commit -m "feat(mindmodel): add loader for .mindmodel directory"
 ```
 
 ---
@@ -358,7 +358,7 @@ describe("mindmodel classifier", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/classifier.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/classifier.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -406,13 +406,13 @@ export function parseClassifierResponse(response: string, manifest: MindmodelMan
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/classifier.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/classifier.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/mindmodel/classifier.ts tests/mindmodel/classifier.test.ts && git commit -m "feat(mindmodel): add task classifier for category selection"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/mindmodel/classifier.ts tests/mindmodel/classifier.test.ts && git commit -m "feat(mindmodel): add task classifier for category selection"
 ```
 
 ---
@@ -473,7 +473,7 @@ describe("mindmodel formatter", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/formatter.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/formatter.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -501,13 +501,13 @@ ${blocks.join("\n\n")}
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/formatter.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/formatter.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/mindmodel/formatter.ts tests/mindmodel/formatter.test.ts && git commit -m "feat(mindmodel): add formatter for context injection"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/mindmodel/formatter.ts tests/mindmodel/formatter.test.ts && git commit -m "feat(mindmodel): add formatter for context injection"
 ```
 
 ---
@@ -535,13 +535,13 @@ export { formatExamplesForInjection } from "./formatter";
 
 **Step 4: Verify by running all mindmodel tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/mindmodel/`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/mindmodel/`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/mindmodel/index.ts && git commit -m "feat(mindmodel): add index export"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/mindmodel/index.ts && git commit -m "feat(mindmodel): add index export"
 ```
 
 ---
@@ -673,7 +673,7 @@ categories:
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/hooks/mindmodel-injector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/hooks/mindmodel-injector.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -761,13 +761,13 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/hooks/mindmodel-injector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/hooks/mindmodel-injector.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/hooks/mindmodel-injector.ts tests/hooks/mindmodel-injector.test.ts && git commit -m "feat(mindmodel): add injector hook for context injection"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/hooks/mindmodel-injector.ts tests/hooks/mindmodel-injector.test.ts && git commit -m "feat(mindmodel): add injector hook for context injection"
 ```
 
 ---
@@ -814,13 +814,13 @@ await mindmodelInjectorHook["chat.params"](input, output);
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All 202+ tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/index.ts && git commit -m "feat(mindmodel): integrate injector hook into plugin"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/index.ts && git commit -m "feat(mindmodel): integrate injector hook into plugin"
 ```
 
 ---
@@ -855,7 +855,7 @@ describe("stack-detector agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/stack-detector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/stack-detector.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -865,7 +865,7 @@ Expected: FAIL with "Cannot find module"
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - detecting project tech stack.
 </environment>
 
@@ -921,13 +921,13 @@ export const stackDetectorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/stack-detector.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/stack-detector.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/mindmodel/stack-detector.ts tests/agents/mindmodel/stack-detector.test.ts && git commit -m "feat(mindmodel): add stack-detector agent"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/mindmodel/stack-detector.ts tests/agents/mindmodel/stack-detector.test.ts && git commit -m "feat(mindmodel): add stack-detector agent"
 ```
 
 ---
@@ -960,7 +960,7 @@ describe("mindmodel pattern-discoverer agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/pattern-discoverer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/pattern-discoverer.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -970,7 +970,7 @@ Expected: FAIL with "Cannot find module"
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - discovering pattern categories.
 </environment>
 
@@ -1041,13 +1041,13 @@ export const mindmodelPatternDiscovererAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/pattern-discoverer.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/pattern-discoverer.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/mindmodel/pattern-discoverer.ts tests/agents/mindmodel/pattern-discoverer.test.ts && git commit -m "feat(mindmodel): add pattern-discoverer agent"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/mindmodel/pattern-discoverer.ts tests/agents/mindmodel/pattern-discoverer.test.ts && git commit -m "feat(mindmodel): add pattern-discoverer agent"
 ```
 
 ---
@@ -1080,7 +1080,7 @@ describe("example-extractor agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/example-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/example-extractor.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -1090,7 +1090,7 @@ Expected: FAIL with "Cannot find module"
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin.
+You are running as part of the "open-engineer" OpenCode plugin.
 You are a SUBAGENT for mindmodel generation - extracting code examples for ONE category.
 </environment>
 
@@ -1164,13 +1164,13 @@ export const exampleExtractorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/example-extractor.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/example-extractor.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/mindmodel/example-extractor.ts tests/agents/mindmodel/example-extractor.test.ts && git commit -m "feat(mindmodel): add example-extractor agent"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/mindmodel/example-extractor.ts tests/agents/mindmodel/example-extractor.test.ts && git commit -m "feat(mindmodel): add example-extractor agent"
 ```
 
 ---
@@ -1208,7 +1208,7 @@ describe("mindmodel-orchestrator agent", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/orchestrator.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/orchestrator.test.ts`
 Expected: FAIL with "Cannot find module"
 
 **Step 3: Write minimal implementation**
@@ -1218,7 +1218,7 @@ Expected: FAIL with "Cannot find module"
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 const PROMPT = `<environment>
-You are running as part of the "micode" OpenCode plugin (NOT Claude Code).
+You are running as part of the "open-engineer" OpenCode plugin (NOT Claude Code).
 You are a SUBAGENT - use spawn_agent tool (not Task tool) to spawn other subagents.
 Available mindmodel agents: mm-stack-detector, mm-pattern-discoverer, mm-example-extractor.
 </environment>
@@ -1337,13 +1337,13 @@ export const mindmodelOrchestratorAgent: AgentConfig = {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/orchestrator.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/orchestrator.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/mindmodel/orchestrator.ts tests/agents/mindmodel/orchestrator.test.ts && git commit -m "feat(mindmodel): add orchestrator agent"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/mindmodel/orchestrator.ts tests/agents/mindmodel/orchestrator.test.ts && git commit -m "feat(mindmodel): add orchestrator agent"
 ```
 
 ---
@@ -1371,13 +1371,13 @@ export { mindmodelOrchestratorAgent } from "./orchestrator";
 
 **Step 4: Verify by running all mindmodel agent tests**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/agents/mindmodel/`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/agents/mindmodel/`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/mindmodel/index.ts && git commit -m "feat(mindmodel): add agents index"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/mindmodel/index.ts && git commit -m "feat(mindmodel): add agents index"
 ```
 
 ---
@@ -1418,13 +1418,13 @@ Add to the `agents` record:
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/agents/index.ts && git commit -m "feat(mindmodel): register mindmodel agents"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/agents/index.ts && git commit -m "feat(mindmodel): register mindmodel agents"
 ```
 
 ---
@@ -1456,13 +1456,13 @@ mindmodel: {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/index.ts && git commit -m "feat(mindmodel): add /mindmodel command"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/index.ts && git commit -m "feat(mindmodel): add /mindmodel command"
 ```
 
 ---
@@ -1493,13 +1493,13 @@ mindmodelSystem: "system.md",
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/utils/config.ts && git commit -m "feat(mindmodel): add config paths"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/utils/config.ts && git commit -m "feat(mindmodel): add config paths"
 ```
 
 ---
@@ -1538,13 +1538,13 @@ try {
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All tests PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add src/hooks/context-injector.ts && git commit -m "feat(mindmodel): load system.md as root context"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add src/hooks/context-injector.ts && git commit -m "feat(mindmodel): load system.md as root context"
 ```
 
 ---
@@ -1625,7 +1625,7 @@ export function Button({ children }: { children: React.ReactNode }) {
 
 **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/integration/mindmodel.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/integration/mindmodel.test.ts`
 Expected: Initially FAIL if modules not properly exported, then PASS
 
 **Step 3: Fix any issues**
@@ -1634,13 +1634,13 @@ Ensure all exports are correct in `src/mindmodel/index.ts`.
 
 **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test tests/integration/mindmodel.test.ts`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test tests/integration/mindmodel.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add tests/integration/mindmodel.test.ts && git commit -m "test(mindmodel): add integration test"
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add tests/integration/mindmodel.test.ts && git commit -m "test(mindmodel): add integration test"
 ```
 
 ---
@@ -1652,23 +1652,23 @@ cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add tests
 
 **Step 1: Run full test suite**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun test`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun test`
 Expected: All tests PASS (202+ original + ~15 new)
 
 **Step 2: Run type check**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun run typecheck`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun run typecheck`
 Expected: No errors
 
 **Step 3: Run linter**
 
-Run: `cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && bun run lint`
+Run: `cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && bun run lint`
 Expected: No errors
 
 **Step 4: Final commit**
 
 ```bash
-cd /Users/whitemonk/projects/config/micode/.worktrees/mindmodel && git add -A && git status
+cd /Users/whitemonk/projects/config/open-engineer/.worktrees/mindmodel && git add -A && git status
 ```
 
 If any uncommitted changes, commit them with appropriate message.

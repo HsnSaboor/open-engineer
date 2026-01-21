@@ -1,10 +1,10 @@
-# micode Installation Guide for LLMs
+# open-engineer Installation Guide for LLMs
 
-This document guides AI assistants through the micode plugin installation process.
+This document guides AI assistants through the open-engineer plugin installation process.
 
 ## Step 0: Ask User About Setup
 
-micode uses Claude Opus 4.5 for its primary agents (commander, brainstormer, project-initializer). Ask the user:
+open-engineer uses Claude Opus 4.5 for its primary agents (commander, brainstormer, project-initializer). Ask the user:
 
 ### Question 1: Claude Subscription
 
@@ -17,8 +17,8 @@ micode uses Claude Opus 4.5 for its primary agents (commander, brainstormer, pro
   - If not max20: Consider using lighter models for subagents
 
 **If NO:**
-- Inform user: "micode works best with Claude Opus 4.5. Without Claude, you'll need to configure alternative models."
-- Create `~/.config/opencode/micode.json`:
+- Inform user: "open-engineer works best with Claude Opus 4.5. Without Claude, you'll need to configure alternative models."
+- Create `~/.config/opencode/open-engineer.json`:
 ```json
 {
   "agents": {
@@ -42,7 +42,7 @@ fi
 
 If OpenCode isn't installed, guide user to https://opencode.ai/docs or spawn a subagent to handle installation.
 
-## Step 2: Configure micode Plugin
+## Step 2: Configure open-engineer Plugin
 
 ### Check for existing config
 
@@ -56,30 +56,30 @@ else
 fi
 ```
 
-### Add micode to plugins
+### Add open-engineer to plugins
 
 **If config exists:**
 ```bash
 if command -v jq &> /dev/null; then
-    jq '.plugin = ((.plugin // []) + ["micode"] | unique)' \
+    jq '.plugin = ((.plugin // []) + ["open-engineer"] | unique)' \
         ~/.config/opencode/opencode.json > /tmp/oc.json && \
         mv /tmp/oc.json ~/.config/opencode/opencode.json
 else
-    echo "Please add \"micode\" to the plugin array in ~/.config/opencode/opencode.json"
+    echo "Please add \"open-engineer\" to the plugin array in ~/.config/opencode/opencode.json"
 fi
 ```
 
 **If no config exists:**
 ```bash
 mkdir -p ~/.config/opencode
-echo '{"plugin":["micode"]}' > ~/.config/opencode/opencode.json
+echo '{"plugin":["open-engineer"]}' > ~/.config/opencode/opencode.json
 ```
 
 ## Step 3: Verify Setup
 
 ```bash
 opencode --version  # Should be 1.0.132 or higher
-cat ~/.config/opencode/opencode.json  # Should contain "micode" in plugin array
+cat ~/.config/opencode/opencode.json  # Should contain "open-engineer" in plugin array
 ```
 
 ## Step 4: Configure Authentication
@@ -105,7 +105,7 @@ opencode auth login
 
 Say to user:
 
-> Congratulations! 🎉 You have successfully set up micode!
+> Congratulations! 🎉 You have successfully set up open-engineer!
 >
 > **What you can do now:**
 > - Use **commander** as your main orchestrator
@@ -124,7 +124,7 @@ After everything is set up and working:
 
 **Only if user explicitly agrees:**
 ```bash
-gh repo star vtemian/micode
+gh repo star vtemian/open-engineer
 ```
 
 Never run this automatically without consent.
@@ -162,7 +162,7 @@ Never run this automatically without consent.
 
 ### Model Override
 
-To use different models, create `~/.config/opencode/micode.json`:
+To use different models, create `~/.config/opencode/open-engineer.json`:
 
 ```json
 {

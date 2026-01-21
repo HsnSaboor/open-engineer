@@ -11,7 +11,7 @@ describe("config-loader", () => {
 
   beforeEach(() => {
     // Create a test config directory
-    testConfigDir = join(tmpdir(), `micode-config-test-${Date.now()}`);
+    testConfigDir = join(tmpdir(), `open-engineer-config-test-${Date.now()}`);
     mkdirSync(testConfigDir, { recursive: true });
   });
 
@@ -19,13 +19,13 @@ describe("config-loader", () => {
     rmSync(testConfigDir, { recursive: true, force: true });
   });
 
-  it("should return null when micode.json does not exist", async () => {
+  it("should return null when open-engineer.json does not exist", async () => {
     const config = await loadMicodeConfig(testConfigDir);
     expect(config).toBeNull();
   });
 
-  it("should load agent model overrides from micode.json", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+  it("should load agent model overrides from open-engineer.json", async () => {
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(
       configPath,
       JSON.stringify({
@@ -45,7 +45,7 @@ describe("config-loader", () => {
   });
 
   it("should return null for invalid JSON", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(configPath, "{ invalid json }");
 
     const config = await loadMicodeConfig(testConfigDir);
@@ -53,7 +53,7 @@ describe("config-loader", () => {
   });
 
   it("should handle empty agents object", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(configPath, JSON.stringify({ agents: {} }));
 
     const config = await loadMicodeConfig(testConfigDir);
@@ -63,7 +63,7 @@ describe("config-loader", () => {
   });
 
   it("should only allow safe properties (model, temperature, maxTokens)", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(
       configPath,
       JSON.stringify({
@@ -91,7 +91,7 @@ describe("config-loader", () => {
   });
 
   it("should handle agents: null", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(configPath, JSON.stringify({ agents: null }));
 
     const config = await loadMicodeConfig(testConfigDir);
@@ -101,7 +101,7 @@ describe("config-loader", () => {
   });
 
   it("should handle config with no agents key", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(configPath, JSON.stringify({ someOtherKey: "value" }));
 
     const config = await loadMicodeConfig(testConfigDir);
@@ -111,7 +111,7 @@ describe("config-loader", () => {
   });
 
   it("should handle non-object agent entries", async () => {
-    const configPath = join(testConfigDir, "micode.json");
+    const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(
       configPath,
       JSON.stringify({

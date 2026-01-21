@@ -55,13 +55,13 @@ export interface MicodeConfig {
 }
 
 /**
- * Load micode.json from ~/.config/opencode/micode.json
+ * Load open-engineer.json from ~/.config/opencode/open-engineer.json
  * Returns null if file doesn't exist or is invalid JSON
  * @param configDir - Optional override for config directory (for testing)
  */
 export async function loadMicodeConfig(configDir?: string): Promise<MicodeConfig | null> {
   const baseDir = configDir ?? join(homedir(), ".config", "opencode");
-  const configPath = join(baseDir, "micode.json");
+  const configPath = join(baseDir, "open-engineer.json");
 
   try {
     const content = await readFile(configPath, "utf-8");
@@ -129,7 +129,7 @@ export function mergeAgentConfigs(
         } else {
           // Model is invalid - log warning and apply other overrides only
           console.warn(
-            `[micode] Model "${userOverride.model}" for agent "${name}" is not available. Using opencode default.`,
+            `[open-engineer] Model "${userOverride.model}" for agent "${name}" is not available. Using opencode default.`,
           );
           const { model: _ignored, ...safeOverrides } = userOverride;
           merged[name] = {
@@ -185,7 +185,7 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
     const trimmedModel = override.model.trim();
     if (!trimmedModel) {
       const { model: _removed, ...otherProps } = override;
-      console.warn(`[micode] Empty model for agent "${agentName}". Using default model.`);
+      console.warn(`[open-engineer] Empty model for agent "${agentName}". Using default model.`);
       if (Object.keys(otherProps).length > 0) {
         validatedAgents[agentName] = otherProps;
       }
@@ -204,7 +204,9 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
     } else {
       // Remove invalid model but keep other properties
       const { model: _removed, ...otherProps } = override;
-      console.warn(`[micode] Model "${override.model}" not found for agent "${agentName}". Using default model.`);
+      console.warn(
+        `[open-engineer] Model "${override.model}" not found for agent "${agentName}". Using default model.`,
+      );
       if (Object.keys(otherProps).length > 0) {
         validatedAgents[agentName] = otherProps;
       }

@@ -21,6 +21,17 @@ interface ReviewState {
   overrideActive: boolean;
 }
 
+// Helper to load guardrails
+async function loadGuardrails(projectDir: string): Promise<string> {
+  const { readFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  try {
+    return await readFile(join(projectDir, ".open-engineer/GUARDRAILS.md"), "utf-8");
+  } catch {
+    return "";
+  }
+}
+
 export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewFn) {
   let cachedMindmodel: LoadedMindmodel | null | undefined;
   const sessionState = new Map<string, ReviewState>();
@@ -70,8 +81,11 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
       if (!filePath) return;
 
       try {
-        // Build review prompt
-        const reviewPrompt = buildReviewPrompt(output.output || "", filePath, mindmodel);
+        // Load guardrails dynamically on every execution to support manual/conversational edits
+        const guardrailsContent = await loadGuardrails(ctx.directory);
+
+        // Build review prompt with strict guardrails
+        const reviewPrompt = buildReviewPrompt(output.output || "", filePath, mindmodel, guardrailsContent);
 
         // Call reviewer
         const reviewResponse = await reviewFn(reviewPrompt);
@@ -131,7 +145,12 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
   };
 }
 
-function buildReviewPrompt(code: string, filePath: string, mindmodel: LoadedMindmodel): string {
+function buildReviewPrompt(
+  code: string,
+  filePath: string,
+  mindmodel: LoadedMindmodel,
+  guardrailsContent: string,
+): string {
   // For now, include all constraints - selective loading can be added later
   const constraintSummary = mindmodel.manifest.categories.map((c) => `- ${c.path}: ${c.description}`).join("\n");
 
@@ -144,7 +163,10 @@ Code:
 ${code}
 \`\`\`
 
-Available constraints:
+STRICT USER GUARDRAILS (Highest Priority):
+${guardrailsContent || "No specific user guardrails defined."}
+
+Available constraints (System):
 ${constraintSummary}
 
 Return JSON with status "PASS" or "BLOCKED" and any violations found.`;

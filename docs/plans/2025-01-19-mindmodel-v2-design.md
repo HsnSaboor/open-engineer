@@ -6,7 +6,7 @@
 
 **Architecture:** Deep codebase analysis extracts constraints (rules + examples + anti-patterns). Constraints are injected during generation. Post-generation review catches violations with automatic retry.
 
-**Tech Stack:** TypeScript, micode plugin hooks, subagent orchestration
+**Tech Stack:** TypeScript, open-engineer plugin hooks, subagent orchestration
 
 ---
 
@@ -261,7 +261,7 @@ Overrides are logged to `.mindmodel/overrides.log`:
 
 ---
 
-## Integration with micode
+## Integration with open-engineer
 
 ### Hook Integration Points
 

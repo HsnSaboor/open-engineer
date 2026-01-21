@@ -10,7 +10,7 @@ tools:
   task: false
 ---
 
-You handle deployments for the micode npm package.
+You handle deployments for the open-engineer npm package.
 
 ## Process
 
