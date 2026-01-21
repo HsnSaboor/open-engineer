@@ -1,7 +1,4 @@
-import { tool } from "@opencode-ai/plugin/tool";
 import type { AgentConfig } from "@opencode-ai/sdk";
-
-import { btca_ask } from "../tools/btca";
 
 export const researcherAgent: AgentConfig = {
   description: "Investigates libraries, frameworks, and methods with engineering rigor before design begins.",
