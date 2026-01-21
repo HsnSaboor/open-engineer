@@ -1,6 +1,6 @@
 # open-engineer
 
-[![CI](https://github.com/vtemian/open-engineer/actions/workflows/ci.yml/badge.svg)](https://github.com/vtemian/open-engineer/actions/workflows/ci.yml)
+[![CI](https://github.com/HsnSaboor/open-engineer/actions/workflows/ci.yml/badge.svg)](https://github.com/HsnSaboor/open-engineer/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/open-engineer.svg)](https://www.npmjs.com/package/open-engineer)
 
 OpenCode plugin with structured Brainstorm → Plan → Implement workflow and session continuity.
@@ -78,6 +78,7 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 | project-initializer | Generate project docs |
 | ledger-creator | Continuity ledgers |
 | artifact-searcher | Search past work |
+| mm-orchestrator | Orchestrate MindModel generation |
 
 ## Tools
 
@@ -93,6 +94,7 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 | `pty_read` | Read PTY output |
 | `pty_list` | List PTY sessions |
 | `pty_kill` | Terminate PTY |
+| `milestone_artifact_search` | Search milestone artifacts |
 
 ## Hooks
 
@@ -108,7 +110,7 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 ## Development
 
 ```bash
-git clone git@github.com:vtemian/open-engineer.git ~/.open-engineer
+git clone git@github.com:HsnSaboor/open-engineer.git ~/.open-engineer
 cd ~/.open-engineer && bun install && bun run build
 ```
 

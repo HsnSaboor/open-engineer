@@ -22,6 +22,7 @@ describe("mindmodel-orchestrator agent", () => {
   it("should disable bash but allow write and other tools", () => {
     expect(mindmodelOrchestratorAgent.tools).toEqual({
       bash: false,
+      btca_resource_add: true,
     });
   });
 

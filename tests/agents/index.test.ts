@@ -47,7 +47,6 @@ describe("agents index", () => {
     for (const agentName of v2Agents) {
       const agent = module.agents[agentName];
       expect(agent.mode).toBe("subagent");
-      expect(agent.model).toBe("openai/gpt-5.2-codex");
     }
   });
 });

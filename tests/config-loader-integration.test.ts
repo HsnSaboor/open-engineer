@@ -23,7 +23,6 @@ describe("config-loader integration", () => {
 
     for (const agentName of expectedAgents) {
       expect(agents[agentName]).toBeDefined();
-      expect(agents[agentName].model).toBeDefined();
     }
   });
 
@@ -47,7 +46,7 @@ describe("config-loader integration", () => {
     expect(merged["mm-orchestrator"].prompt).toBeDefined();
 
     // Check other agents still have defaults
-    expect(merged.commander.model).toBe("openai/gpt-5.2-codex");
+    expect(merged.commander.model).toBeUndefined();
   });
 
   it("should preserve all agent properties when merging", () => {

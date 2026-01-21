@@ -33,11 +33,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vtemian/open-engineer.git"
+    "url": "git+https://github.com/HsnSaboor/open-engineer.git"
   },
-  "homepage": "https://github.com/vtemian/open-engineer#readme",
+  "homepage": "https://github.com/HsnSaboor/open-engineer#readme",
   "bugs": {
-    "url": "https://github.com/vtemian/open-engineer/issues"
+    "url": "https://github.com/HsnSaboor/open-engineer/issues"
   },
   "dependencies": {
     "@opencode-ai/plugin": "1.1.23",
