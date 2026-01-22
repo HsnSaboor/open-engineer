@@ -21,9 +21,8 @@ interface SessionMessagesResponse {
 
 export function createSpawnAgentTool(ctx: PluginInput) {
   return tool({
-    description: `FOR SUBAGENTS ONLY - Primary agents (commander, brainstormer) should use the built-in Task tool instead.
-Spawn a subagent to execute a task synchronously. The agent runs to completion and returns its result.
-Use this when you are a SUBAGENT (executor, planner, mm-orchestrator) and need to spawn other subagents.
+    description: `Spawn a subagent to execute a task synchronously. The agent runs to completion and returns its result.
+Use this when you are a COMMANDER or a SUBAGENT (executor, planner, project-initializer, mm-orchestrator) and need to spawn other specialists.
 For parallel execution, call spawn_agent multiple times in ONE message.`,
     args: {
       agent: tool.schema.string().describe("Agent to spawn (e.g., 'implementer', 'reviewer')"),

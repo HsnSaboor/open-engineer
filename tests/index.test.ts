@@ -36,13 +36,13 @@ describe("index.ts constraint-reviewer integration", () => {
 });
 
 describe("index.ts /init command", () => {
-  it("should use mm-orchestrator agent for /init command", async () => {
+  it("should use project-initializer agent for /init command", async () => {
     const source = await readFile("src/index.ts", "utf-8");
-    // The /init command should use mm-orchestrator for v2 constraint-guided generation
+    // The /init command should use project-initializer for v2 constraint-guided generation
     // Match the init command configuration block
     const initCommandMatch = source.match(/init:\s*\{[^}]*agent:\s*["']([^"']+)["']/);
     expect(initCommandMatch).not.toBeNull();
-    expect(initCommandMatch![1]).toBe("mm-orchestrator");
+    expect(initCommandMatch![1]).toBe("project-initializer");
   });
 
   it("should not have /mindmodel command (only /init)", async () => {

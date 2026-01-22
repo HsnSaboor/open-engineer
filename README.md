@@ -65,11 +65,12 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 
 | Agent | Purpose |
 |-------|---------|
-| commander | Orchestrator |
+| commander | Senior Chief Engineer & Orchestrator |
 | researcher | Deep technical research |
 | brainstormer | Design exploration |
 | planner | Implementation plans |
 | executor | Orchestrate implement→review |
+| project-initializer | Setup project standards and MindModel |
 | implementer | Execute tasks |
 | reviewer | Check correctness |
 | codebase-locator | Find file locations |

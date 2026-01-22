@@ -45,6 +45,7 @@ export const agents: Record<string, AgentConfig> = {
   "artifact-searcher": { ...artifactSearcherAgent },
   octto: { ...octtoAgent },
   probe: { ...probeAgent },
+  "project-initializer": { ...mindmodelOrchestratorAgent },
   // Mindmodel generation agents
   "mm-stack-detector": { ...stackDetectorAgent },
   "mm-pattern-discoverer": { ...mindmodelPatternDiscovererAgent },

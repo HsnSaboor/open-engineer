@@ -291,7 +291,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
         ...config.command,
         init: {
           description: "Initialize project with .mindmodel/ constraints",
-          agent: "mm-orchestrator",
+          agent: "project-initializer",
           template: `Generate mindmodel for this project. $ARGUMENTS`,
         },
         ledger: {
