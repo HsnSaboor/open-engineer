@@ -9,6 +9,7 @@ import { PRIMARY_AGENT_NAME, primaryAgent } from "./commander";
 import { executorAgent } from "./executor";
 import { implementerAgent } from "./implementer";
 import { ledgerCreatorAgent } from "./ledger-creator";
+import { migrationOrchestratorAgent } from "./migration-orchestrator";
 import {
   antiPatternDetectorAgent,
   codeClustererAgent,
@@ -46,6 +47,7 @@ export const agents: Record<string, AgentConfig> = {
   octto: { ...octtoAgent },
   probe: { ...probeAgent },
   "project-initializer": { ...mindmodelOrchestratorAgent },
+  "migration-orchestrator": { ...migrationOrchestratorAgent },
   // Mindmodel generation agents
   "mm-stack-detector": { ...stackDetectorAgent },
   "mm-pattern-discoverer": { ...mindmodelPatternDiscovererAgent },
@@ -78,4 +80,5 @@ export {
   octtoAgent,
   probeAgent,
   researcherAgent,
+  migrationOrchestratorAgent,
 };

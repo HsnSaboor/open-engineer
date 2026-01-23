@@ -17,6 +17,7 @@ import { createLedgerLoaderHook } from "./hooks/ledger-loader";
 import { createMindmodelInjectorHook } from "./hooks/mindmodel-injector";
 import { createSessionRecoveryHook } from "./hooks/session-recovery";
 import { createTokenAwareTruncationHook } from "./hooks/token-aware-truncation";
+import { createWorktreeEnforcerHook } from "./hooks/worktree-enforcer";
 import { artifact_search } from "./tools/artifact-search";
 // Tools
 import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tools/ast-grep";
@@ -97,6 +98,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const commentCheckerHook = createCommentCheckerHook(ctx);
   const artifactAutoIndexHook = createArtifactAutoIndexHook(ctx);
   const fileOpsTrackerHook = createFileOpsTrackerHook(ctx);
+  const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx);
 
   // Track internal sessions to prevent hook recursion (used by classifier/reviewer)
   const internalSessions = new Set<string>();
@@ -397,6 +399,20 @@ IMPORTANT:
 - Focus on information needed to continue seamlessly
 - Be specific about what was done, not vague summaries
 - Include any error messages or issues encountered`;
+    },
+
+    // Tool output processing
+    "tool.execute.before": async (input: {
+      tool: string;
+      sessionID: string;
+      callID: string;
+      args?: Record<string, unknown>;
+    }) => {
+      // Enforce worktree isolation for file modifications
+      const result = await worktreeEnforcerHook["tool.execute.before"](input);
+      if (result?.error) {
+        throw new Error(result.error);
+      }
     },
 
     // Tool output processing
