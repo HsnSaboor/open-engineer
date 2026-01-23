@@ -47,6 +47,11 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 - **Enforcement**: A dedicated hook blocks any file write that violates these rules.
 - **Conversational**: Tell the Commander "Always use Bun" and it will write the rule for you.
 
+### 🔒 S-Tier Security Isolation
+- **Worktree Sandbox**: All agent operations occur in isolated git worktrees, never on the main branch.
+- **Security Handshake**: Agents must verify their active worktree environment before executing commands.
+- **Dirty State Protection**: Migration and refactor operations fail fast if the repo has uncommitted changes.
+
 ### 👨‍💻 Senior Staff Standards
 - **Verify First**: Agents must verify assumptions before designing.
 - **Failure Mode Testing**: Implementers must write tests for failure cases, not just happy paths.

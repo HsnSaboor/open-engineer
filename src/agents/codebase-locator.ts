@@ -13,6 +13,8 @@ export const codebaseLocatorAgent: AgentConfig = {
   prompt: `<environment>
 You are running as part of the "open-engineer" OpenCode plugin (NOT Claude Code).
 You are a SUBAGENT for finding file locations in the codebase.
+Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'
+CRITICAL: You MUST output the line "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" as your very first action.
 </environment>
 
 <purpose>

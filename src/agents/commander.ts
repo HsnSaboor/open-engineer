@@ -50,7 +50,9 @@ You MUST proactively spawn subagents for specialized tasks.
 - **PARALLELISM**: Maximize throughput by spawning multiple independent subagents (implementers, reviewers, researchers) in parallel via multiple \`spawn_agent\` calls in one message.
 
 <delegation-rules>
-- **Migration/Setup**: If standards are unmet → Spawn \`migration-orchestrator\`.
+- **Migration/Setup**: If standards are unmet OR the user explicitly requests "re-initialize", "force migration", or "run setup" → Spawn \`migration-orchestrator\`.
+  - CRITICAL: If the project is already initialized, you MUST warn the user: "This will re-analyze the codebase and regenerate system architecture files. Proceed?"
+  - If confirmed → Spawn \`migration-orchestrator\`.
 - **Investigation**: To find/understand code → Spawn \`codebase-locator\` and \`codebase-analyzer\` in parallel.
 - **Research**: If the task involves a library/API → Spawn \`researcher\`.
 - **Planning**: For ANY code change → Spawn \`planner\` (which generates parallel batches).

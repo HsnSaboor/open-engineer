@@ -17,18 +17,27 @@ Execute the 4-Stage "S-Tier" Transformation Pipeline to modularize and document 
 Maintain 1:1 functional/UI parity while enforcing a 700-line limit and spec-driven persistence.
 </purpose>
 
+<pre-flight-check priority="critical">
+1. Run \`git status --porcelain\` immediately.
+2. If output is NOT empty:
+   - STOP execution.
+   - Fail with error: "Repository is dirty. Please stash or commit changes before migration."
+3. Run \`git worktree remove --force .worktrees/migration-refactor\` to clean stale state.
+</pre-flight-check>
+
 <transformation-pipeline>
-<stage name="1. Reverse-Spec Audit">
-  <goal>Capture the "Golden Record" of existing functionality.</goal>
-  <action>Spawn parallel 'codebase-analyzer' and 'codebase-locator' agents to map logic.</action>
+<stage name="1. Stage 0 Isolation & Audit">
+  <goal>Create a clean sandbox and capture the "Golden Record" of existing functionality.</goal>
+  <action>Create worktree: \`git worktree add -b migration-refactor .worktrees/migration-refactor main\`</action>
+  <action>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety.</action>
+  <action>Spawn parallel 'codebase-analyzer' and 'codebase-locator' agents INSIDE the worktree.</action>
   <action>Write 'thoughts/shared/current_spec.md' documenting every feature and edge case.</action>
   <action>Identify "Data Files" vs "Code Files".</action>
 </stage>
 
   <stage name="2. Isolated Modularization">
-    <goal>Refactor monolithic files in a sandbox.</goal>
-    <action>Ensure a git worktree is active for the refactor (managed by Commander).</action>
-    <action>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety.</action>
+    <goal>Refactor monolithic files in the sandbox.</goal>
+    <action>Ensure the worktree is active (created in Stage 1).</action>
     <action>Spawn 'planner' to create a modularization plan.</action>
     <action>Split all code files >700 lines (or 1100 for small projects) into logical sub-units.</action>
     <action>Modularize large data chunks into 'data/' folders for manageability.</action>

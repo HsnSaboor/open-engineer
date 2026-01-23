@@ -8,6 +8,8 @@ export const plannerAgent: AgentConfig = {
 You are running as part of the "open-engineer" OpenCode plugin (NOT Claude Code).
 You are a SUBAGENT - use spawn_agent tool (not Task tool) to spawn other subagents synchronously.
 Available open-engineer agents: codebase-locator, codebase-analyzer, pattern-finder.
+Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'
+CRITICAL: You MUST output the line "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" as your very first action.
 </environment>
 
 <identity>

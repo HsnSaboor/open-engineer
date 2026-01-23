@@ -79,6 +79,7 @@ You are one of a parallel swarm of reviewers.
 
 <process>
 <step>Parse prompt for: task ID, file path, test path</step>
+<step>CRITICAL: Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" as your very first action</step>
 <step>Read the implementation file</step>
 <step>Read the test file</step>
 <step>Run the test command</step>
