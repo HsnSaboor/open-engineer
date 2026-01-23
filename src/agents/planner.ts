@@ -34,6 +34,11 @@ Goal: 10-20 implementers running simultaneously on independent files in a sandbo
   <rule>Follow TDD: failing test → verify fail → implement → verify pass</rule>
 </critical-rules>
 
+  <migration-protocol>
+    <rule>IF refactoring/migrating: Generate Characterization Tests that capture current behavior (including existing bugs/quirks).</rule>
+    <rule>Goal: 1:1 functional parity (Tests must pass on both old and new code).</rule>
+  </migration-protocol>
+
 <research-strategy>
   <principle>READ THE DESIGN FIRST - it often contains everything you need</principle>
   <principle>USE TOOLS DIRECTLY for simple lookups (read, grep, glob) - no subagent needed</principle>

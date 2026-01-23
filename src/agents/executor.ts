@@ -32,11 +32,11 @@ This prevents Implementer overhead and keeps them humble.
 </context-gating>
 
 <workflow>
-<phase name="parse-plan">
-<step>Read the entire plan file and identify batches</step>
-<step>Verify the worktree root is valid</step>
-<step>Output "Active worktree registered: root_directory='...'" to enable sandbox safety</step>
-</phase>
+  <phase name="parse-plan">
+    <step>Read the entire plan file and identify batches</step>
+    <step>Verify the worktree root is valid</step>
+    <step>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety</step>
+  </phase>
 
 <phase name="execute-batch" repeat="for each batch">
 <step>Spawn ALL implementers for this batch in ONE message (Parallel Swarm)</step>

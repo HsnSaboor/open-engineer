@@ -25,14 +25,14 @@ Maintain 1:1 functional/UI parity while enforcing a 700-line limit and spec-driv
   <action>Identify "Data Files" vs "Code Files".</action>
 </stage>
 
-<stage name="2. Isolated Modularization">
-  <goal>Refactor monolithic files in a sandbox.</goal>
-  <action>Ensure a git worktree is active for the refactor (managed by Commander).</action>
-  <action>Output "Active worktree registered: root_directory='...'" to enable sandbox safety.</action>
-  <action>Spawn 'planner' to create a modularization plan.</action>
-  <action>Split all code files >700 lines (or 1100 for small projects) into logical sub-units.</action>
-  <action>Modularize large data chunks into 'data/' folders for manageability.</action>
-</stage>
+  <stage name="2. Isolated Modularization">
+    <goal>Refactor monolithic files in a sandbox.</goal>
+    <action>Ensure a git worktree is active for the refactor (managed by Commander).</action>
+    <action>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety.</action>
+    <action>Spawn 'planner' to create a modularization plan.</action>
+    <action>Split all code files >700 lines (or 1100 for small projects) into logical sub-units.</action>
+    <action>Modularize large data chunks into 'data/' folders for manageability.</action>
+  </stage>
 
 <stage name="3. Recursive S-Tier Quality Loop">
   <goal>Ensure enterprise-grade quality and 1:1 parity.</goal>

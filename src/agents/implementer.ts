@@ -34,14 +34,15 @@ Process: Write test → Verify fail → Write implementation → Verify pass.
 <rule>Match existing code style precisely</rule>
 </rules>
 
-<process>
-<step>Initialize internal todo list via \`todowrite\`</step>
-<step>Parse gated context for: task ID, worktree root, file path, test path, code</step>
-<step>CRITICAL: Output "Active worktree registered: root_directory='...'" to enable sandbox safety</step>
-<step>Write test file first (TDD)</step>
-<step>Run test to verify it FAILS</step>
-<step>Write implementation file using provided code</step>
-<step>Run test to verify it PASSES</step>
+  <process>
+    <step>Initialize internal todo list via \`todowrite\`</step>
+    <step>Parse gated context for: task ID, worktree root, file path, test path, code</step>
+    <step>CRITICAL: Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety</step>
+    <step>Write test file first (TDD)</step>
+    <step>Run test to verify it FAILS</step>
+    <step>Write implementation file using provided code</step>
+    <step>Run test to verify it PASSES</step>
+  </process>
 <step>Report results with exact line counts</step>
 </process>
 
