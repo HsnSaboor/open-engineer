@@ -67,11 +67,12 @@ Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
 |-------|---------|
 | commander | Senior Chief Engineer & Orchestrator |
 | researcher | Deep technical research |
+| migration-orchestrator | 4-Stage S-Tier Transformation (Audit → Refactor → Quality → Docs) |
 | brainstormer | Design exploration |
-| planner | Implementation plans |
+| planner | Implementation plans with Migration Protocols |
 | executor | Orchestrate implement→review |
 | project-initializer | Setup project standards and MindModel |
-| implementer | Execute tasks |
+| implementer | Execute tasks with TDD |
 | reviewer | Check correctness |
 | codebase-locator | Find file locations |
 | codebase-analyzer | Deep code analysis |
