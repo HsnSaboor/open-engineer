@@ -27,6 +27,7 @@ import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
 import { look_at } from "./tools/look-at";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createOcttoTools, createSessionStore } from "./tools/octto";
+import { createPruningTools } from "./tools/pruning";
 // PTY System
 import { createPtyTools, PTYManager } from "./tools/pty";
 import { createSpawnAgentTool } from "./tools/spawn-agent";
@@ -215,6 +216,9 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   // Spawn agent tool (for subagents to spawn other subagents)
   const spawn_agent = createSpawnAgentTool(ctx);
 
+  // DCP Pruning Tools
+  const pruningTools = createPruningTools(ctx);
+
   // Octto (browser-based brainstorming) tools
   const octtoSessionStore = createSessionStore();
 
@@ -251,6 +255,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       spawn_agent,
       ...ptyTools,
       ...octtoTools,
+      ...pruningTools,
     },
 
     config: async (config) => {
@@ -328,6 +333,9 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
     "chat.params": async (input, output) => {
       // Inject ledger context first (highest priority)
       await ledgerLoaderHook["chat.params"](input, output);
+
+      // Inject DCP History Map
+      await dcpPrunerHook["chat.params"](input, output);
 
       // Inject project context files
       await contextInjectorHook["chat.params"](input, output);

@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // Define Message types based on usage
 export interface MessagePart {
@@ -36,8 +39,11 @@ export interface PruningStrategies {
 export class PruningManager {
   private strategies: PruningStrategies;
   private protectedTools: Set<string>;
+  private rootDir: string;
+  private extractions: Map<string, Map<string, string>>; // sessionId -> (toolCallId -> summary)
 
   constructor(
+    rootDir: string,
     strategies: PruningStrategies = {
       deduplication: true,
       supersedeWrites: true,
@@ -45,11 +51,54 @@ export class PruningManager {
     },
     protectedTools: string[] = ["task", "todowrite", "todoread"],
   ) {
+    this.rootDir = rootDir;
     this.strategies = strategies;
     this.protectedTools = new Set(protectedTools);
+    this.extractions = new Map();
   }
 
-  public pruneMessages(messages: Message[]): Message[] {
+  // Helper to load extractions
+  private async loadExtractions(sessionId: string) {
+    if (this.extractions.has(sessionId)) return;
+    try {
+      const path = join(this.rootDir, "thoughts", sessionId, "pruning.json");
+      if (existsSync(path)) {
+        const content = await readFile(path, "utf-8");
+        const data = JSON.parse(content);
+        this.extractions.set(sessionId, new Map(Object.entries(data)));
+      } else {
+        this.extractions.set(sessionId, new Map());
+      }
+    } catch {
+      this.extractions.set(sessionId, new Map());
+    }
+  }
+
+  // Helper to save extractions
+  private async saveExtractions(sessionId: string) {
+    const map = this.extractions.get(sessionId);
+    if (!map) return;
+    try {
+      const dir = join(this.rootDir, "thoughts", sessionId);
+      await mkdir(dir, { recursive: true });
+      const path = join(dir, "pruning.json");
+      await writeFile(path, JSON.stringify(Object.fromEntries(map), null, 2));
+    } catch (e) {
+      console.error(`Failed to save pruning state for session ${sessionId}:`, e);
+    }
+  }
+
+  public async registerExtraction(sessionId: string, toolCallId: string, summary: string) {
+    await this.loadExtractions(sessionId);
+    const map = this.extractions.get(sessionId)!;
+    map.set(toolCallId, summary);
+    await this.saveExtractions(sessionId);
+  }
+
+  public async pruneMessages(sessionId: string, messages: Message[]): Promise<Message[]> {
+    await this.loadExtractions(sessionId);
+    const manualMap = this.extractions.get(sessionId);
+
     const activeReadHashes = new Map<string, string>(); // hash -> callId
     const fileWrites = new Map<string, string>(); // path -> callId
     const toolCalls = new Map<string, ToolCallInfo>(); // callId -> Info
@@ -94,11 +143,14 @@ export class PruningManager {
     }
 
     // Second Pass: Apply strategies
-    // We need to re-iterate or just iterate over indexed calls?
-    // Deduplication and Supersede Writes depend on order.
-    // So we iterate through the history again.
+    // 0. Apply Manual Extractions first
+    if (manualMap) {
+      for (const [id, summary] of manualMap.entries()) {
+        prunedOutputs.add(id);
+        pruningReasons.set(id, `Extracted: ${summary}`);
+      }
+    }
 
-    // Reset temporary tracking for this pass
     activeReadHashes.clear();
     fileWrites.clear();
 
@@ -117,11 +169,12 @@ export class PruningManager {
                 const hash = this.computeHash(name, params);
                 const existingId = activeReadHashes.get(hash);
                 if (existingId) {
-                  // Prune the PREVIOUS output
-                  prunedOutputs.add(existingId);
-                  pruningReasons.set(existingId, "Deduplicated");
+                  // Prune the PREVIOUS output (if not manually extracted already)
+                  if (!manualMap?.has(existingId)) {
+                    prunedOutputs.add(existingId);
+                    pruningReasons.set(existingId, "Deduplicated");
+                  }
                 }
-                // Update to latest (if we see it again, we prune THIS one's predecessor)
                 activeReadHashes.set(hash, callId);
               }
             }
@@ -153,9 +206,7 @@ export class PruningManager {
                 const path = (info.params as any).filePath || (info.params as any).path;
                 if (path && typeof path === "string") {
                   const lastWriteId = fileWrites.get(path);
-                  // If there is a previous write, and it is not already pruned (to avoid double pruning or confusion)
                   if (lastWriteId && lastWriteId !== callId) {
-                    // Prune the INPUT of the write
                     prunedInputs.add(lastWriteId);
                     pruningReasons.set(lastWriteId, `Superseded by read at ${callId}`);
                   }
@@ -167,8 +218,10 @@ export class PruningManager {
             if (this.strategies.errorPurge?.enabled && info.status === "error") {
               const age = currentTurn - info.turnIndex;
               if (age >= this.strategies.errorPurge.turnsToKeep) {
-                prunedOutputs.add(callId);
-                pruningReasons.set(callId, "Stale Error");
+                if (!manualMap?.has(callId)) {
+                  prunedOutputs.add(callId);
+                  pruningReasons.set(callId, "Stale Error");
+                }
               }
             }
           }
@@ -181,10 +234,15 @@ export class PruningManager {
       const newParts = msg.parts.map((part) => {
         // Prune Output (Tool Result)
         if (part.type === "tool_result" && part.tool_use_id && prunedOutputs.has(part.tool_use_id)) {
-          const reason = pruningReasons.get(part.tool_use_id);
+          const reason = pruningReasons.get(part.tool_use_id) || "";
+          let newContent = `[Output pruned: ${reason}]`;
+          if (reason.startsWith("Extracted: ")) {
+            newContent = `[Summary: ${reason.substring(11)}]`;
+          }
+
           return {
             ...part,
-            content: `[Output pruned: ${reason}]`,
+            content: newContent,
           };
         }
 
@@ -208,6 +266,84 @@ export class PruningManager {
 
       return { ...msg, parts: newParts };
     });
+  }
+
+  public async saveIdMapping(sessionId: string, messages: Message[]) {
+    const map = new Map<number, string>();
+    let count = 1;
+    for (const msg of messages) {
+      if (msg.info.role === "assistant") {
+        for (const part of msg.parts) {
+          if (part.type === "tool_use" && part.tool_use_id) {
+            map.set(count, part.tool_use_id);
+            count++;
+          }
+        }
+      }
+    }
+
+    try {
+      const dir = join(this.rootDir, "thoughts", sessionId);
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, "id-map.json"), JSON.stringify(Object.fromEntries(map)));
+    } catch (e) {
+      console.error(`Failed to save ID map for session ${sessionId}:`, e);
+    }
+  }
+
+  public async getToolIdFromMap(sessionId: string, id: number): Promise<string | null> {
+    try {
+      const path = join(this.rootDir, "thoughts", sessionId, "id-map.json");
+      if (existsSync(path)) {
+        const content = await readFile(path, "utf-8");
+        const data = JSON.parse(content);
+        return data[String(id)] || null;
+      }
+    } catch {}
+    return null;
+  }
+
+  public generateHistoryMap(messages: Message[]): string {
+    let output = "<history_map>\n";
+    let count = 1;
+
+    for (const msg of messages) {
+      if (msg.info.role === "assistant") {
+        for (const part of msg.parts) {
+          if (part.type === "tool_use" && part.tool_use_id) {
+            // Format: [1] name: input (summary)
+            // Ideally we also show if it's already pruned?
+            // "Use 'extract' to summarize."
+            let paramSummary = "";
+            const input = part.input as any;
+            if (input?.path) paramSummary = input.path;
+            else if (input?.filePath) paramSummary = input.filePath;
+            else if (input?.pattern) paramSummary = `"${input.pattern}"`;
+            else paramSummary = JSON.stringify(part.input).slice(0, 30);
+
+            output += `  [${count}] ${part.name}: ${paramSummary}\n`;
+            count++;
+          }
+        }
+      }
+    }
+    output += "</history_map>";
+    return output;
+  }
+
+  public getToolIdFromIndex(messages: Message[], index: number): string | null {
+    let count = 1;
+    for (const msg of messages) {
+      if (msg.info.role === "assistant") {
+        for (const part of msg.parts) {
+          if (part.type === "tool_use" && part.tool_use_id) {
+            if (count === index) return part.tool_use_id;
+            count++;
+          }
+        }
+      }
+    }
+    return null;
   }
 
   private computeHash(name: string, params: Record<string, unknown>): string {
