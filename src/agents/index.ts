@@ -24,6 +24,10 @@ import {
   stackDetectorAgent,
 } from "./mindmodel";
 import { octtoAgent } from "./octto";
+import { explorerAgent } from "./pantheon/explorer";
+import { fixerAgent } from "./pantheon/fixer";
+import { librarianAgent } from "./pantheon/librarian";
+import { oracleAgent } from "./pantheon/oracle";
 import { patternFinderAgent } from "./pattern-finder";
 import { plannerAgent } from "./planner";
 import { probeAgent } from "./probe";
@@ -61,6 +65,12 @@ export const agents: Record<string, AgentConfig> = {
   "mm-anti-pattern-detector": { ...antiPatternDetectorAgent },
   "mm-constraint-writer": { ...constraintWriterAgent },
   "mm-constraint-reviewer": { ...constraintReviewerAgent },
+
+  // Pantheon Agents
+  explorer: { ...explorerAgent },
+  fixer: { ...fixerAgent },
+  oracle: { ...oracleAgent },
+  librarian: { ...librarianAgent },
 };
 
 export {

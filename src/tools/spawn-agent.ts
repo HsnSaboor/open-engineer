@@ -25,7 +25,9 @@ export function createSpawnAgentTool(ctx: PluginInput) {
 Use this when you are a COMMANDER or a SUBAGENT (executor, planner, project-initializer, mm-orchestrator) and need to spawn other specialists.
 For parallel execution, call spawn_agent multiple times in ONE message.`,
     args: {
-      agent: tool.schema.string().describe("Agent to spawn (e.g., 'implementer', 'reviewer')"),
+      agent: tool.schema
+        .string()
+        .describe("Agent to spawn (e.g., 'explorer', 'fixer', 'oracle', 'implementer', 'reviewer', 'librarian')"),
       prompt: tool.schema.string().describe("Full prompt/instructions for the agent"),
       description: tool.schema.string().describe("Short description of the task"),
     },

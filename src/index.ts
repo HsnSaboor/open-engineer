@@ -8,6 +8,7 @@ import { loadMicodeConfig, mergeAgentConfigs } from "./config-loader";
 import { createArtifactAutoIndexHook } from "./hooks/artifact-auto-index";
 // Hooks
 import { createAutoCompactHook } from "./hooks/auto-compact";
+import { createCartographerHook } from "./hooks/cartographer";
 import { createCommentCheckerHook } from "./hooks/comment-checker";
 import { createConstraintReviewerHook } from "./hooks/constraint-reviewer";
 import { createContextInjectorHook } from "./hooks/context-injector";
@@ -24,6 +25,7 @@ import { artifact_search } from "./tools/artifact-search";
 import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tools/ast-grep";
 import { btca_ask, checkBtcaAvailable } from "./tools/btca";
 import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
+import { createCartographyTools } from "./tools/cartography";
 import { look_at } from "./tools/look-at";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createOcttoTools, createSessionStore } from "./tools/octto";
@@ -102,6 +104,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const fileOpsTrackerHook = createFileOpsTrackerHook(ctx);
   const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx);
   const dcpPrunerHook = createDcpPrunerHook(ctx);
+  const cartographerHook = createCartographerHook(ctx);
 
   // Track internal sessions to prevent hook recursion (used by classifier/reviewer)
   const internalSessions = new Set<string>();
@@ -218,6 +221,8 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
 
   // DCP Pruning Tools
   const pruningTools = createPruningTools(ctx);
+  // Slim Cartography Tools
+  const cartographyTools = createCartographyTools(ctx);
 
   // Octto (browser-based brainstorming) tools
   const octtoSessionStore = createSessionStore();
@@ -256,6 +261,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       ...ptyTools,
       ...octtoTools,
       ...pruningTools,
+      ...cartographyTools,
     },
 
     config: async (config) => {
@@ -336,6 +342,9 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
 
       // Inject DCP History Map
       await dcpPrunerHook["chat.params"](input, output);
+
+      // Inject Atlas
+      await cartographerHook["chat.params"](input, output);
 
       // Inject project context files
       await contextInjectorHook["chat.params"](input, output);
@@ -447,6 +456,9 @@ IMPORTANT:
         { tool: input.tool, sessionID: input.sessionID, args: input.args },
         output,
       );
+
+      // Track dirty files for Cartography
+      await cartographerHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
 
       // Constraint review for Edit/Write
       await constraintReviewerHook["tool.execute.after"](
