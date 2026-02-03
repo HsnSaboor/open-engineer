@@ -12,6 +12,7 @@ import { createCommentCheckerHook } from "./hooks/comment-checker";
 import { createConstraintReviewerHook } from "./hooks/constraint-reviewer";
 import { createContextInjectorHook } from "./hooks/context-injector";
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor";
+import { createDcpPrunerHook } from "./hooks/dcp-pruner";
 import { createFileOpsTrackerHook, getFileOps } from "./hooks/file-ops-tracker";
 import { createLedgerLoaderHook } from "./hooks/ledger-loader";
 import { createMindmodelInjectorHook } from "./hooks/mindmodel-injector";
@@ -99,6 +100,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const artifactAutoIndexHook = createArtifactAutoIndexHook(ctx);
   const fileOpsTrackerHook = createFileOpsTrackerHook(ctx);
   const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx);
+  const dcpPrunerHook = createDcpPrunerHook(ctx);
 
   // Track internal sessions to prevent hook recursion (used by classifier/reviewer)
   const internalSessions = new Set<string>();
@@ -447,6 +449,7 @@ IMPORTANT:
 
     // Extract task from messages for mindmodel injection
     "experimental.chat.messages.transform": async (input, output) => {
+      await dcpPrunerHook["experimental.chat.messages.transform"](input, output);
       await mindmodelInjectorHook["experimental.chat.messages.transform"](input, output);
     },
 

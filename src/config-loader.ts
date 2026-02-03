@@ -50,8 +50,22 @@ export interface AgentOverride {
   maxTokens?: number;
 }
 
+export interface DcpConfig {
+  enabled?: boolean;
+  strategies?: {
+    deduplication?: boolean;
+    supersedeWrites?: boolean;
+    errorPurge?: {
+      enabled: boolean;
+      turnsToKeep: number;
+    };
+  };
+  protectedTools?: string[];
+}
+
 export interface MicodeConfig {
   agents?: Record<string, AgentOverride>;
+  dcp?: DcpConfig;
 }
 
 /**
@@ -68,6 +82,8 @@ export async function loadMicodeConfig(configDir?: string): Promise<MicodeConfig
     const parsed = JSON.parse(content) as Record<string, unknown>;
 
     // Sanitize the config - only allow safe properties
+    const result: MicodeConfig = {};
+
     if (parsed.agents && typeof parsed.agents === "object") {
       const sanitizedAgents: Record<string, AgentOverride> = {};
 
@@ -86,10 +102,14 @@ export async function loadMicodeConfig(configDir?: string): Promise<MicodeConfig
         }
       }
 
-      return { agents: sanitizedAgents };
+      result.agents = sanitizedAgents;
     }
 
-    return parsed as MicodeConfig;
+    if (parsed.dcp) {
+      result.dcp = parsed.dcp as DcpConfig;
+    }
+
+    return result;
   } catch {
     return null;
   }
