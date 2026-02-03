@@ -14,6 +14,7 @@ import { createConstraintReviewerHook } from "./hooks/constraint-reviewer";
 import { createContextInjectorHook } from "./hooks/context-injector";
 import { createContextWindowMonitorHook } from "./hooks/context-window-monitor";
 import { createDcpPrunerHook } from "./hooks/dcp-pruner";
+import { createEnforcerHooks } from "./hooks/enforcers";
 import { createFileOpsTrackerHook, getFileOps } from "./hooks/file-ops-tracker";
 import { createLedgerLoaderHook } from "./hooks/ledger-loader";
 import { createMindmodelInjectorHook } from "./hooks/mindmodel-injector";
@@ -28,6 +29,7 @@ import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
 import { createCartographyTools } from "./tools/cartography";
 import { createGsdTools } from "./tools/gsd";
 import { look_at } from "./tools/look-at";
+import { createLspTools, LspManager } from "./tools/lsp";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createOcttoTools, createSessionStore } from "./tools/octto";
 import { createPruningTools } from "./tools/pruning";
@@ -106,6 +108,10 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx);
   const dcpPrunerHook = createDcpPrunerHook(ctx);
   const cartographerHook = createCartographerHook(ctx);
+
+  // LSP & Enforcers
+  const lspManager = new LspManager();
+  const enforcerHooks = createEnforcerHooks(ctx, lspManager);
 
   // Track internal sessions to prevent hook recursion (used by classifier/reviewer)
   const internalSessions = new Set<string>();
@@ -230,6 +236,9 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   // Octto (browser-based brainstorming) tools
   const octtoSessionStore = createSessionStore();
 
+  // LSP Tools
+  const lspTools = createLspTools(lspManager);
+
   // Track octto sessions per opencode session for cleanup
   const octtoSessionsMap = new Map<string, Set<string>>();
 
@@ -266,6 +275,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       ...pruningTools,
       ...cartographyTools,
       ...gsdTools,
+      ...lspTools,
     },
 
     config: async (config) => {
@@ -352,6 +362,10 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
 
       // Inject project context files
       await contextInjectorHook["chat.params"](input, output);
+
+      // Inject Enforcers (Quality Gate + Todos)
+      // biome-ignore lint/suspicious/noExplicitAny: type mismatch workaround
+      await enforcerHooks["chat.params"](input, output as any);
 
       // Inject context window status
       await contextWindowMonitorHook["chat.params"](input, output);
@@ -464,6 +478,12 @@ IMPORTANT:
       // Track dirty files for Cartography
       await cartographerHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
 
+      // Track tool usage for enforcers
+      await enforcerHooks["tool.execute.after"](
+        { sessionID: input.sessionID, tool: input.tool, args: input.args },
+        output,
+      );
+
       // Constraint review for Edit/Write
       await constraintReviewerHook["tool.execute.after"](
         { tool: input.tool, sessionID: input.sessionID, args: input.args },
@@ -524,6 +544,9 @@ IMPORTANT:
 
       // File ops tracker cleanup
       await fileOpsTrackerHook.event({ event });
+
+      // Update LSP Manager
+      lspManager.handleEvent(event);
     },
   };
 };
