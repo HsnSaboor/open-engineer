@@ -1,153 +1,115 @@
-# open-engineer
+# Open Engineer (S-Tier Architecture)
 
 [![CI](https://github.com/HsnSaboor/open-engineer/actions/workflows/ci.yml/badge.svg)](https://github.com/HsnSaboor/open-engineer/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/open-engineer.svg)](https://www.npmjs.com/package/open-engineer)
 
-OpenCode plugin with structured Brainstorm → Plan → Implement workflow and session continuity.
+**The Autonomous Software Engineering Agent for OpenCode.**
 
-https://github.com/user-attachments/assets/85236ad3-e78a-4ff7-a840-620f6ea2f512
+Open Engineer is a high-performance plugin that turns OpenCode into a **Principal Engineer**. It doesn't just write code; it manages context, orchestrates swarms of specialists, enforces strict specifications, and refuses to ship broken code.
 
-## Quick Start
+## 🚀 The S-Tier Architecture
 
+This plugin implements the **Ralph Loop Philosophy** (Iteration > Perfection) via four core engines:
+
+### 1. DCP (Dynamic Context Pruning)
+*Context Rot is the enemy.*
+- **Pruning Engine**: Automatically deduplicates and supersedes older messages to keep the context window fresh.
+- **Distillation**: The AI proactively "extracts" insights from its history to save tokens.
+- **Result**: You can have infinite-length sessions without degradation.
+
+### 2. Slim Pantheon (Multi-Agent Swarm)
+*One brain is not enough.*
+The **Commander** (Orchestrator) delegates work to specialized sub-agents:
+- **Explorer 🔭**: Reconnaissance only. Maps the territory without breaking things.
+- **Fixer 🛠️**: Surgical execution. Does exactly what is planned, nothing more.
+- **Oracle 🔮**: High-level architectural critique and security review.
+- **Librarian 📚**: Maintains the **Code Atlas** (a persistent index of your repo).
+
+### 3. GSD (Get Shit Done)
+*Vibe coding is over. Welcome to Spec-Driven Development.*
+- **Spec Stack**: Enforces a strict hierarchy: `PROJECT.md` (Vision) → `REQUIREMENTS.md` (Features) → `ROADMAP.md` (Phases).
+- **Atomic Git**: Every single task is verified (test/lint) *before* being committed.
+- **XML Planning**: The Planner generates rigorous XML plans (`<plan><task><verify>`) for deterministic execution.
+
+### 4. OhMy (Relentless Autonomy)
+*The agent that doesn't quit.*
+- **Zero-Error Gate**: The agent CANNOT finish a task if `lsp_diagnostics` reports errors.
+- **Continuation**: If `todowrite` tasks are pending, the system auto-loops until they are done.
+- **Worktree Isolation**: All major changes happen in a `git worktree` sandbox, protecting your main branch.
+
+---
+
+## 🛠️ Usage
+
+### Quick Start
 Add to `~/.config/opencode/opencode.json`:
-
 ```json
 { "plugin": ["open-engineer"] }
 ```
+(Or use the local path if developing: `~/.open-engineer`)
 
-Then run `/init` to generate `ARCHITECTURE.md`, `CODE_STYLE.md`, and `.open-engineer/GUARDRAILS.md`.
+### The "One-Prompt" Workflow
+You don't need to micro-manage. Just act like a Lead Engineer.
 
-## Workflow
+**User:**
+> "The auth system is flaky. Fix it."
 
-```
-Research → Brainstorm → Plan → Implement
-   ↓          ↓          ↓        ↓
-research   design     research  executor
-```
+**Commander (Autonomous):**
+1.  **Scans Repo**: Checks `PROJECT.md` and `atlas.json`.
+2.  **Spawns Explorer**: Maps `src/auth`.
+3.  **Spawns Planner**: Creates a GSD Plan (XML).
+4.  **Spawns Fixer**: Implements the fix in a Worktree.
+5.  **Verifies**: Runs tests.
+6.  **Commits**: `feat(auth): fix timeout bug`
+7.  **Reports**: "Fixed. Ready for review."
 
-### 1. Research (New!)
-Before brainstorming, the **Researcher** agent investigates libraries, APIs, and architectural patterns. It produces a "Research Brief" to ground the design in reality, preventing hallucinations about non-existent APIs.
-
-### 2. Brainstorm
-Refine ideas into designs through collaborative questioning. Uses the Research Brief as a source of truth. Output: `thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md`
-
-### 3. Plan  
-Transform designs into implementation plans with bite-sized tasks (2-5 min each), exact file paths, and TDD workflow. Output: `thoughts/shared/plans/YYYY-MM-DD-{topic}.md`
-
-### 4. Implement
-Execute in git worktree for isolation. The **Executor** orchestrates implementer→reviewer cycles with parallel execution via fire-and-check pattern.
-
-### 5. Session Continuity
-Maintain context across sessions with structured compaction. Run `/ledger` to create/update `thoughts/ledgers/CONTINUITY_{session}.md`.
-
-## Key Features & Improvements
-
-### 🛡️ Guardrails System
-Strictly enforce project rules using `.open-engineer/GUARDRAILS.md`.
-- **Enforcement**: A dedicated hook blocks any file write that violates these rules.
-- **Conversational**: Tell the Commander "Always use Bun" and it will write the rule for you.
-
-### 🔒 S-Tier Security Isolation
-- **Worktree Sandbox**: All agent operations occur in isolated git worktrees, never on the main branch.
-- **Security Handshake**: Agents must verify their active worktree environment before executing commands.
-- **Dirty State Protection**: Migration and refactor operations fail fast if the repo has uncommitted changes.
-
-### 👨‍💻 Senior Staff Standards
-- **Verify First**: Agents must verify assumptions before designing.
-- **Failure Mode Testing**: Implementers must write tests for failure cases, not just happy paths.
-- **Atomic Cleanup**: "Scout Rule" is encouraged during implementation.
-- **Safety Protocol**: "Quick Mode" tasks require a read-lint-test safety cycle.
-
-## Commands
-
+### Commands (Optional)
 | Command | Description |
-|---------|-------------|
-| `/init` | Initialize project docs |
-| `/ledger` | Create/update continuity ledger |
-| `/search` | Search past plans and ledgers |
+|:---|:---|
+| `/gsd_init` | Bootstrap the GSD Spec Stack (`PROJECT.md` etc) |
+| `/task` | Manually spawn a specific agent (e.g. `/task subagent_type="explorer" prompt="..."`) |
+| `/help` | Show available tools and agents |
 
-## Agents
+---
 
-| Agent | Purpose |
-|-------|---------|
-| commander | Senior Chief Engineer & Orchestrator |
-| researcher | Deep technical research |
-| migration-orchestrator | 4-Stage S-Tier Transformation (Audit → Refactor → Quality → Docs) |
-| brainstormer | Design exploration |
-| planner | Implementation plans with Migration Protocols |
-| executor | Orchestrate implement→review |
-| project-initializer | Setup project standards and MindModel |
-| implementer | Execute tasks with TDD |
-| reviewer | Check correctness |
-| codebase-locator | Find file locations |
-| codebase-analyzer | Deep code analysis |
-| pattern-finder | Find existing patterns |
-| project-initializer | Generate project docs |
-| ledger-creator | Continuity ledgers |
-| artifact-searcher | Search past work |
-| mm-orchestrator | Orchestrate MindModel generation |
+## 🤖 The Agent Roster
 
-## Tools
+| Agent | Role | Model (Recommended) |
+|:---|:---|:---|
+| **Commander** | Orchestrator & Boss | Claude 3.5 Sonnet / Gemini 3 Pro |
+| **Planner** | GSD Spec Generator | Claude 3.5 Sonnet |
+| **Explorer** | Repo Mapper | Gemini 3 Flash / GPT-4o-mini |
+| **Fixer** | Code Implementer | Claude 3.5 Sonnet |
+| **Oracle** | Reviewer | GPT-4o / O1 |
+| **Librarian** | Documentation | Gemini 3 Flash |
 
-| Tool | Description |
-|------|-------------|
-| `ast_grep_search` | AST-aware code pattern search |
-| `ast_grep_replace` | AST-aware code pattern replacement |
-| `look_at` | Extract file structure |
-| `artifact_search` | Search past plans/ledgers |
-| `btca_ask` | Query library source code |
-| `pty_spawn` | Start background terminal session |
-| `pty_write` | Send input to PTY |
-| `pty_read` | Read PTY output |
-| `pty_list` | List PTY sessions |
-| `pty_kill` | Terminate PTY |
-| `milestone_artifact_search` | Search milestone artifacts |
+---
 
-## Hooks
+## 🛡️ Guardrails & Configuration
 
-- **Think Mode** - Keywords like "think hard" enable 32k token thinking budget
-- **Ledger Loader** - Injects continuity ledger into system prompt
-- **Auto-Compact** - At 50% context usage, automatically summarizes session to reduce context
-- **File Ops Tracker** - Tracks read/write/edit for deterministic logging
-- **Artifact Auto-Index** - Indexes artifacts in thoughts/ directories
-- **Context Injector** - Injects ARCHITECTURE.md, CODE_STYLE.md, and GUARDRAILS.md
-- **Token-Aware Truncation** - Truncates large tool outputs
-- **Constraint Reviewer** - Enforces Guardrails on every file write
+### Hard Rules
+Create `.open-engineer/GUARDRAILS.md`. The **Constraint Reviewer** enforces these on *every* file write.
+```markdown
+# Critical Rules
+1. NO `console.log` in production.
+2. ALL database calls must be wrapped in try/catch.
+```
 
-## Development
+### Style Guides
+Add "Gold Standard" examples to `.mindmodel/`. The system auto-injects them when relevant.
+
+---
+
+## 📦 Installation & Development
 
 ```bash
-git clone git@github.com:HsnSaboor/open-engineer.git ~/.open-engineer
+git clone https://github.com/HsnSaboor/open-engineer.git ~/.open-engineer
 cd ~/.open-engineer && bun install && bun run build
 ```
 
-```json
-// Use local path
-{ "plugin": ["~/.open-engineer"] }
-```
+Then register it in your OpenCode config.
 
-### Release
+---
 
-```bash
-npm version patch  # or minor, major
-git push --follow-tags
-```
-
-## Philosophy
-
-1. **Research first** - Don't guess APIs
-2. **Brainstorm second** - Refine ideas before coding
-3. **Plan with human buy-in** - Get approval before coding
-4. **Parallel investigation** - Spawn multiple subagents
-5. **Isolated implementation** - Use git worktrees
-6. **Continuous verification** - Implementer + Reviewer per task
-7. **Session continuity** - Never lose context
-8. **Guardrails** - Enforce architectural laws
-
-## Inspiration & Credits
-
-- **[micode](https://github.com/vtemian/micode)** - The original foundation this project is based on.
-- [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode) - Plugin architecture
-- [HumanLayer ACE-FCA](https://github.com/humanlayer/12-factor-agents) - Structured workflows
-- [Factory.ai](https://factory.ai/blog/context-compression) - Structured compaction research
-
+## License
+MIT
