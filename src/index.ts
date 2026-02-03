@@ -26,6 +26,7 @@ import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tool
 import { btca_ask, checkBtcaAvailable } from "./tools/btca";
 import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
 import { createCartographyTools } from "./tools/cartography";
+import { createGsdTools } from "./tools/gsd";
 import { look_at } from "./tools/look-at";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createOcttoTools, createSessionStore } from "./tools/octto";
@@ -223,6 +224,8 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const pruningTools = createPruningTools(ctx);
   // Slim Cartography Tools
   const cartographyTools = createCartographyTools(ctx);
+  // GSD Tools
+  const gsdTools = createGsdTools(ctx);
 
   // Octto (browser-based brainstorming) tools
   const octtoSessionStore = createSessionStore();
@@ -262,6 +265,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       ...octtoTools,
       ...pruningTools,
       ...cartographyTools,
+      ...gsdTools,
     },
 
     config: async (config) => {
