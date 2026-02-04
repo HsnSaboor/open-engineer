@@ -5,6 +5,7 @@ import type { PluginInput } from "@opencode-ai/plugin";
 
 import { config } from "../utils/config";
 import { extractErrorMessage } from "../utils/errors";
+import { log } from "../utils/logger";
 import { getContextLimit } from "../utils/model-limits";
 
 interface PendingCompaction {
@@ -78,7 +79,7 @@ ${summaryText}
       await writeFile(ledgerPath, ledgerContent, "utf-8");
     } catch (e) {
       // Don't fail the compaction flow if ledger write fails
-      console.error("[auto-compact] Failed to write ledger:", e);
+      await log.error("auto-compact", "Failed to write ledger:", e);
     }
   }
 

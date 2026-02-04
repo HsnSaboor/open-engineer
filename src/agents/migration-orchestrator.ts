@@ -52,12 +52,13 @@ Maintain 1:1 functional/UI parity while enforcing a 700-line limit and spec-driv
   <action>VERIFY: Run characterization tests to ensure functionality remains IDENTICAL.</action>
 </stage>
 
-<stage name="4. Knowledge Base Injection">
-  <goal>Finalize institutional memory.</goal>
-  <action>Generate '.mindmodel/' directory (system.md, style.md, patterns.md).</action>
-  <action>Initialize 'thoughts/shared/journal.md' with the migration history.</action>
-  <action>Prompt user via Commander for specific guardrails to write to '.open-engineer/GUARDRAILS.md'.</action>
-</stage>
+  <stage name="4. Knowledge Base Injection">
+    <goal>Finalize institutional memory.</goal>
+    <action>Generate '.mindmodel/' directory (system.md, style.md, patterns.md).</action>
+    <action>CRITICAL: Create '.mindmodel/manifest.yaml' to register the new mindmodel files.</action>
+    <action>Initialize 'thoughts/shared/journal.md' with the migration history.</action>
+    <action>Prompt user via Commander for specific guardrails to write to '.open-engineer/GUARDRAILS.md'.</action>
+  </stage>
 </transformation-pipeline>
 
 <rules>

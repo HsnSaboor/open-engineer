@@ -69,6 +69,8 @@ export const config = {
     mindmodelManifest: "manifest.yaml",
     /** Mindmodel system file */
     mindmodelSystem: "system.md",
+    /** Mindmodel log file */
+    mindmodelLog: "loader.log",
   },
 
   /**

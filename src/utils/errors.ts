@@ -1,6 +1,4 @@
-// src/utils/errors.ts
-// Unified error handling utilities
-// Used by tools and hooks for consistent error formatting and logging
+import { log } from "./logger";
 
 /**
  * Safely extract error message from unknown error type.
@@ -36,7 +34,7 @@ export function catchAndLog<T>(module: string, fn: () => T): T | undefined {
   try {
     return fn();
   } catch (e) {
-    console.error(`[${module}] ${extractErrorMessage(e)}`);
+    log.error(module, extractErrorMessage(e));
     return undefined;
   }
 }
@@ -51,7 +49,7 @@ export async function catchAndLogAsync<T>(module: string, fn: () => Promise<T>):
   try {
     return await fn();
   } catch (e) {
-    console.error(`[${module}] ${extractErrorMessage(e)}`);
+    await log.error(module, extractErrorMessage(e));
     return undefined;
   }
 }

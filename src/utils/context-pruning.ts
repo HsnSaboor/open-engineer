@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { log } from "./logger";
+
 // Define Message types based on usage
 export interface MessagePart {
   type: string;
@@ -84,7 +86,7 @@ export class PruningManager {
       const path = join(dir, "pruning.json");
       await writeFile(path, JSON.stringify(Object.fromEntries(map), null, 2));
     } catch (e) {
-      console.error(`Failed to save pruning state for session ${sessionId}:`, e);
+      await log.error("dcp", `Failed to save pruning state for session ${sessionId}:`, e);
     }
   }
 
@@ -287,7 +289,7 @@ export class PruningManager {
       await mkdir(dir, { recursive: true });
       await writeFile(join(dir, "id-map.json"), JSON.stringify(Object.fromEntries(map)));
     } catch (e) {
-      console.error(`Failed to save ID map for session ${sessionId}:`, e);
+      await log.error("dcp", `Failed to save ID map for session ${sessionId}:`, e);
     }
   }
 

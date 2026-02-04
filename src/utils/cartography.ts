@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 
+import { log } from "./logger";
+
 interface DirectoryNode {
   hash: string;
   summary: string;
@@ -61,7 +63,7 @@ export class Cartographer {
         const content = await readFile(this.atlasPath, "utf-8");
         this.atlas = JSON.parse(content);
       } catch (e) {
-        console.error("Failed to load Atlas:", e);
+        await log.error("cartography", "Failed to load Atlas:", e);
       }
     }
   }
@@ -72,7 +74,7 @@ export class Cartographer {
       await mkdir(dir, { recursive: true });
       await writeFile(this.atlasPath, JSON.stringify(this.atlas, null, 2));
     } catch (e) {
-      console.error("Failed to save Atlas:", e);
+      await log.error("cartography", "Failed to save Atlas:", e);
     }
   }
 
@@ -168,7 +170,7 @@ export class Cartographer {
       entry.summary = summary;
       entry.keySymbols = keySymbols;
       this.atlas.lastUpdated = Date.now();
-      this.save().catch((e) => console.error(e));
+      this.save().catch((e) => log.error("cartography", "Failed to save Atlas async", e));
     }
   }
 
