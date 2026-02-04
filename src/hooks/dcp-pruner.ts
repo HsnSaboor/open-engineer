@@ -41,7 +41,7 @@ export function createDcpPrunerHook(ctx: PluginInput) {
         output.messages = prunedMessages;
 
         // Generate History Map
-        const historyMap = pruningManager.generateHistoryMap(prunedMessages);
+        const historyMap = await pruningManager.generateHistoryMap(sessionID, prunedMessages);
         historyMaps.set(sessionID, historyMap);
 
         // Save ID mapping for tools

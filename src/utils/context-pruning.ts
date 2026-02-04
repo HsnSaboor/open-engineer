@@ -303,7 +303,10 @@ export class PruningManager {
     return null;
   }
 
-  public generateHistoryMap(messages: Message[]): string {
+  public async generateHistoryMap(sessionId: string, messages: Message[]): Promise<string> {
+    await this.loadExtractions(sessionId);
+    const manualMap = this.extractions.get(sessionId);
+
     let output = "<history_map>\n";
     let count = 1;
 
@@ -311,9 +314,6 @@ export class PruningManager {
       if (msg.info.role === "assistant") {
         for (const part of msg.parts) {
           if (part.type === "tool_use" && part.tool_use_id) {
-            // Format: [1] name: input (summary)
-            // Ideally we also show if it's already pruned?
-            // "Use 'extract' to summarize."
             let paramSummary = "";
             const input = part.input as any;
             if (input?.path) paramSummary = input.path;
@@ -321,7 +321,17 @@ export class PruningManager {
             else if (input?.pattern) paramSummary = `"${input.pattern}"`;
             else paramSummary = JSON.stringify(part.input).slice(0, 30);
 
-            output += `  [${count}] ${part.name}: ${paramSummary}\n`;
+            let status = "";
+            const extraction = manualMap?.get(part.tool_use_id);
+            if (extraction) {
+              if (extraction.startsWith("[Discarded:")) {
+                status = " [Discarded]";
+              } else {
+                status = " [Extracted]";
+              }
+            }
+
+            output += `  [${count}] ${part.name}: ${paramSummary}${status}\n`;
             count++;
           }
         }
