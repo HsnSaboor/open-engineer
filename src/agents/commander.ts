@@ -115,6 +115,7 @@ When the goal is clear, EXECUTE via specialists.
   <action>2. git commit -m "feat: [task] - implementation complete"</action>
   <action>3. git worktree remove .worktrees/agent-task-id --force</action>
   <action>4. git branch -D agent-task-id</action>
+  <action>5. SPAWN 'librarian' to re-index the project after the merge.</action>
 </phase>
 </workflow>
 

@@ -25,6 +25,19 @@ interface Atlas {
   symbolMap: Record<string, SymbolEntry>;
 }
 
+// Folders to ignore during scanning
+const IGNORED_DIRS = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  "out",
+  "coverage",
+  ".worktrees", // Ignore sandboxes
+  "thoughts", // Ignore session logs (The Trail)
+  ".planning", // Ignore ephemeral plans
+]);
+
 export class Cartographer {
   private rootDir: string;
   private atlas: Atlas;
@@ -64,16 +77,17 @@ export class Cartographer {
   }
 
   public async markDirty(filePath: string) {
+    // Check if the file is in an ignored directory
+    const parts = relative(this.rootDir, filePath).split("/");
+    if (parts.some((p) => IGNORED_DIRS.has(p))) {
+      return;
+    }
+
     const dir = dirname(filePath);
     this.dirty.add(dir);
-    // Propagate up? No, local summary is enough usually.
-    // But parent summary might depend on children.
-    // For now, flat dirty marking.
   }
 
   public async query(query: string): Promise<string> {
-    // Semantic search is hard without embeddings.
-    // We'll do keyword matching on summaries and symbol map.
     const queryLower = query.toLowerCase();
     const results: string[] = [];
 
@@ -97,25 +111,27 @@ export class Cartographer {
     return results.slice(0, 10).join("\n\n");
   }
 
-  // Update logic to be called by hook or manually
-  // This just updates the hash and detects changes.
-  // It returns list of directories that need re-summarization (Librarian task).
   public async scanDirty(): Promise<string[]> {
     const toSummarize: string[] = [];
 
     for (const dir of this.dirty) {
       try {
+        // Skip ignored directories
+        const relDir = relative(this.rootDir, dir);
+        if (relDir.split("/").some((p) => IGNORED_DIRS.has(p))) {
+          continue;
+        }
+
         const files = await readdir(dir, { withFileTypes: true });
         const fileNames = files
           .filter((f) => f.isFile())
           .map((f) => f.name)
           .sort();
         const childDirs = files
-          .filter((f) => f.isDirectory())
+          .filter((f) => f.isDirectory() && !IGNORED_DIRS.has(f.name))
           .map((f) => f.name)
           .sort();
 
-        // Compute hash of mtimes
         const hash = createHash("md5");
         for (const file of fileNames) {
           const s = await stat(join(dir, file));
@@ -123,13 +139,10 @@ export class Cartographer {
         }
         const digest = hash.digest("hex");
 
-        // Check if changed
         const existing = this.atlas.directories[dir];
         if (!existing || existing.hash !== digest) {
-          // Changed
           toSummarize.push(dir);
 
-          // Update basic entry
           this.atlas.directories[dir] = {
             hash: digest,
             summary: existing?.summary || "(Pending scan)",
@@ -140,7 +153,6 @@ export class Cartographer {
           };
         }
       } catch {
-        // Directory might have been deleted
         delete this.atlas.directories[dir];
       }
     }
@@ -164,7 +176,6 @@ export class Cartographer {
     let output = "## Code Atlas (Top-Level)\n";
     const sortedDirs = Object.keys(this.atlas.directories).sort();
 
-    // Always include root summary if available
     const rootNode = this.atlas.directories[this.atlas.root];
     if (rootNode) output += `- /: ${rootNode.summary}\n`;
 
@@ -173,7 +184,7 @@ export class Cartographer {
       if (!rel || rel.startsWith("..")) continue;
 
       const depth = rel.split("/").length;
-      if (depth > 2) continue; // Limit depth
+      if (depth > 2) continue;
 
       const indent = "  ".repeat(depth);
       const node = this.atlas.directories[dir];
