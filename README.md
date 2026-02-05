@@ -37,6 +37,12 @@ The **Commander** (Orchestrator) delegates work to specialized sub-agents:
 - **Continuation**: If `todowrite` tasks are pending, the system auto-loops until they are done.
 - **Worktree Isolation**: All major changes happen in a `git worktree` sandbox, protecting your main branch.
 
+### 5. AASO (Asynchronous Swarm Orchestration)
+*Parallelism without deadlocks.*
+- **Async Spawning**: Decouples agent invocation from result retrieval. The `spawn_agent` tool triggers specialists and returns a `SessionID` immediately.
+- **Swarm Sync**: The `wait_for_agents` tool allows the parent to poll and aggregate results from multiple subagents in parallel.
+- **Efficiency**: Drastically reduces turn-blocking. A swarm of 5 agents finishes in the time of the slowest one, not the sum of all.
+
 ---
 
 ## 🛠️ Usage
@@ -56,12 +62,13 @@ You don't need to micro-manage. Just act like a Lead Engineer.
 
 **Commander (Autonomous):**
 1.  **Scans Repo**: Checks `PROJECT.md` and `atlas.json`.
-2.  **Spawns Explorer**: Maps `src/auth`.
-3.  **Spawns Planner**: Creates a GSD Plan (XML).
-4.  **Spawns Fixer**: Implements the fix in a Worktree.
-5.  **Verifies**: Runs tests.
-6.  **Commits**: `feat(auth): fix timeout bug`
-7.  **Reports**: "Fixed. Ready for review."
+2.  **Triggers Swarm**: Spawns `Explorer` and `Researcher` in parallel using `spawn_agent`.
+3.  **Synchronizes**: Calls `wait_for_agents` to collect findings when the swarm is idle.
+4.  **Spawns Planner**: Creates a GSD Plan (XML) based on aggregated data.
+5.  **Spawns Fixer**: Implements the fix in a Worktree.
+6.  **Verifies**: Runs tests and linting.
+7.  **Commits**: `feat(auth): fix timeout bug`
+8.  **Reports**: "Fixed. Ready for review."
 
 ### Commands (Optional)
 | Command | Description |

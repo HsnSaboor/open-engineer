@@ -14,7 +14,7 @@ export function createCartographerHook(ctx: PluginInput) {
   }
 
   return {
-    "tool.execute.after": async (input: { tool: string; args?: any }, output: any) => {
+    "tool.execute.after": async (input: { tool: string; args?: any }, _output: any) => {
       if (input.tool === "write" || input.tool === "edit") {
         await initialize();
         const path = input.args?.filePath || input.args?.path;
@@ -31,7 +31,7 @@ export function createCartographerHook(ctx: PluginInput) {
     },
 
     "chat.params": async (
-      input: { sessionID: string },
+      _input: { sessionID: string },
       output: { options?: Record<string, unknown>; system?: any },
     ) => {
       await initialize();

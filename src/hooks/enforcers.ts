@@ -1,7 +1,6 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 
 import type { LspManager } from "../tools/lsp";
-import { log } from "../utils/logger";
 
 interface TodoItem {
   id: string;
@@ -33,7 +32,7 @@ export class EnforcerManager {
   }
 }
 
-export function createEnforcerHooks(ctx: PluginInput, lspManager: LspManager) {
+export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
   const manager = new EnforcerManager(lspManager);
 
   return {

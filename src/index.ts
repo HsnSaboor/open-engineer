@@ -1,10 +1,10 @@
-import type { Plugin } from "@opencode-ai/plugin";
-import type { McpLocalConfig } from "@opencode-ai/sdk";
+import type { Hooks, Plugin, PluginInput } from "@opencode-ai/plugin";
+import type { Config, McpLocalConfig } from "@opencode-ai/sdk";
 
 // Agents
 import { agents, PRIMARY_AGENT_NAME } from "./agents";
 // Config loader
-import { loadMicodeConfig, mergeAgentConfigs } from "./config-loader";
+import { loadMicodeConfig, type MicodeConfig, mergeAgentConfigs } from "./config-loader";
 import { createArtifactAutoIndexHook } from "./hooks/artifact-auto-index";
 // Hooks
 import { createAutoCompactHook } from "./hooks/auto-compact";
@@ -36,61 +36,87 @@ import { createPruningTools } from "./tools/pruning";
 // PTY System
 import { createPtyTools, PTYManager } from "./tools/pty";
 import { createSpawnAgentTool } from "./tools/spawn-agent";
+import { createWaitForAgentsTool } from "./tools/wait-for-agents";
 import { log, setLoggerClient } from "./utils/logger";
 import { getOrGenerateProjectName } from "./utils/project-config";
 
-// Think mode: detect keywords and enable extended thinking
-const THINK_KEYWORDS = [
-  /\bthink\s*(hard|deeply|carefully|through)\b/i,
-  /\bthink\b.*\b(about|on|through)\b/i,
-  /\b(deeply|carefully)\s*think\b/i,
-  /\blet('s|s)?\s*think\b/i,
-];
-
-function detectThinkKeyword(text: string): boolean {
-  return THINK_KEYWORDS.some((pattern) => pattern.test(text));
-}
-
-// MCP server configurations
-const MCP_SERVERS: Record<string, McpLocalConfig> = {
-  context7: {
-    type: "local",
-    command: ["npx", "-y", "@upstash/context7-mcp@latest"],
-  },
-};
-
-// Environment-gated research MCP servers
-if (process.env.PERPLEXITY_API_KEY) {
-  MCP_SERVERS.perplexity = {
-    type: "local",
-    command: ["npx", "-y", "@anthropic/mcp-perplexity"],
-  };
-}
-
-if (process.env.FIRECRAWL_API_KEY) {
-  MCP_SERVERS.firecrawl = {
-    type: "local",
-    command: ["npx", "-y", "firecrawl-mcp"],
-  };
-}
-
-const OpenCodeConfigPlugin: Plugin = async (ctx) => {
+const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   // Initialize background logger
   setLoggerClient(ctx.client);
 
-  // Validate external tool dependencies at startup
-  const astGrepStatus = await checkAstGrepAvailable();
-  if (!astGrepStatus.available) {
-    await log.warn("open-engineer", astGrepStatus.message ?? "ast-grep is unavailable");
+  /**
+   * Helper to fetch the model being used by a specific session
+   */
+  async function fetchSessionModel(sessionID: string) {
+    if (!sessionID || sessionID === "{id}" || sessionID.startsWith("{")) return undefined;
+
+    try {
+      const resp = (await ctx.client.session.messages({
+        path: { id: sessionID },
+        query: { directory: ctx.directory },
+      })) as any;
+
+      const messages = resp.data || [];
+      const lastMsg = messages[messages.length - 1]?.info;
+
+      if (lastMsg) {
+        if (lastMsg.role === "assistant" && lastMsg.providerID && lastMsg.modelID) {
+          return { providerID: lastMsg.providerID, modelID: lastMsg.modelID };
+        }
+        if (lastMsg.role === "user" && lastMsg.model) {
+          return lastMsg.model as { providerID: string; modelID: string };
+        }
+      }
+    } catch (_error) {
+      // Silent fail
+    }
+    return undefined;
   }
 
-  const btcaStatus = await checkBtcaAvailable();
-  if (!btcaStatus.available) {
-    await log.warn("open-engineer", btcaStatus.message ?? "btca is unavailable");
+  // Think mode patterns
+  const THINK_KEYWORDS = [
+    /\bthink\s*(hard|deeply|carefully|through)\b/i,
+    /\bthink\b.*\b(about|on|through)\b/i,
+    /\b(deeply|carefully)\s*think\b/i,
+    /\blet('s|s)?\s*think\b/i,
+  ];
+
+  function detectThinkKeyword(text: string): boolean {
+    return THINK_KEYWORDS.some((pattern) => pattern.test(text));
   }
 
-  // Load user config for temperature/maxTokens overrides (model overrides not supported)
-  const userConfig = await loadMicodeConfig();
+  // MCP server configurations
+  const MCP_SERVERS: Record<string, McpLocalConfig> = {
+    context7: {
+      type: "local",
+      command: ["npx", "-y", "@upstash/context7-mcp@latest"],
+    },
+  };
+
+  // Background initialization tasks (non-blocking)
+  checkAstGrepAvailable()
+    .then((status) => {
+      if (!status.available) {
+        log.warn("open-engineer", status.message ?? "ast-grep is unavailable");
+      }
+    })
+    .catch(() => {});
+
+  checkBtcaAvailable()
+    .then((status) => {
+      if (!status.available) {
+        log.warn("open-engineer", status.message ?? "btca is unavailable");
+      }
+    })
+    .catch(() => {});
+
+  const configPromise = loadMicodeConfig();
+  let userConfig: MicodeConfig | null = null;
+  configPromise
+    .then((c) => {
+      userConfig = c;
+    })
+    .catch(() => {});
 
   // Think mode state per session
   const thinkModeState = new Map<string, boolean>();
@@ -113,55 +139,42 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   const lspManager = new LspManager();
   const enforcerHooks = createEnforcerHooks(ctx, lspManager);
 
-  // Track internal sessions to prevent hook recursion (used by classifier/reviewer)
+  // Track internal sessions
   const internalSessions = new Set<string>();
 
-  // Mindmodel injector hook - classifies tasks to inject relevant code examples
-  const mindmodelClassifyFn = async (classifierPrompt: string): Promise<string> => {
+  // Mindmodel injector hook
+  const mindmodelClassifyFn = async (classifierPrompt: string, parentSessionID?: string): Promise<string> => {
     let sessionId: string | undefined;
     try {
-      // Create a temporary session for classification
+      // Inherit model if parent session ID is provided
+      const model = parentSessionID ? await fetchSessionModel(parentSessionID) : undefined;
+
       const sessionResult = await ctx.client.session.create({
         body: { title: "mindmodel-classifier" },
       });
 
-      if (!sessionResult.data?.id) {
-        log.warn("mindmodel", "Failed to create classifier session");
-        return "[]";
-      }
+      if (!sessionResult.data?.id) return "[]";
       sessionId = sessionResult.data.id;
-
-      // Mark as internal to prevent hook recursion
       internalSessions.add(sessionId);
 
-      // Use a fast model via prompt - the default agent will route appropriately
       const promptResult = await ctx.client.session.prompt({
         path: { id: sessionId },
         body: {
-          tools: {}, // No tools needed for classification
-          parts: [{ type: "text", text: classifierPrompt }],
+          model: model as any,
+          parts: [{ type: "text", text: classifierPrompt }] as any,
         },
       });
 
-      if (!promptResult.data?.parts) {
-        log.warn("mindmodel", "Empty response from classifier");
-        return "[]";
-      }
+      if (!promptResult.data?.parts) return "[]";
 
-      // Extract text response
       let responseText = "";
-      for (const part of promptResult.data.parts) {
-        if (part.type === "text" && "text" in part) {
-          responseText += (part as { text: string }).text;
-        }
+      for (const part of promptResult.data.parts as any[]) {
+        if (part.type === "text") responseText += part.text;
       }
-
       return responseText;
-    } catch (error) {
-      log.warn("mindmodel", `Classifier failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    } catch (_error) {
       return "[]";
     } finally {
-      // Clean up session and tracking
       if (sessionId) {
         internalSessions.delete(sessionId);
         await ctx.client.session.delete({ path: { id: sessionId } }).catch(() => {});
@@ -170,76 +183,60 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
   };
   const mindmodelInjectorHook = createMindmodelInjectorHook(ctx, mindmodelClassifyFn);
 
-  // Constraint reviewer hook - reviews generated code against .mindmodel/ constraints
-  const constraintReviewerHook = createConstraintReviewerHook(ctx, async (reviewPrompt) => {
-    let sessionId: string | undefined;
-    try {
-      const sessionResult = await ctx.client.session.create({
-        body: { title: "constraint-reviewer" },
-      });
+  // Constraint reviewer hook
+  const constraintReviewerHook = createConstraintReviewerHook(
+    ctx,
+    async (reviewPrompt: string, parentSessionID?: string) => {
+      let sessionId: string | undefined;
+      try {
+        // Inherit model if parent session ID is provided
+        const model = parentSessionID ? await fetchSessionModel(parentSessionID) : undefined;
 
-      if (!sessionResult.data?.id) {
-        log.warn("mindmodel", "Failed to create reviewer session");
-        return '{"status": "PASS", "violations": [], "summary": "Review skipped"}';
-      }
-      sessionId = sessionResult.data.id;
+        const sessionResult = await ctx.client.session.create({
+          body: { title: "constraint-reviewer" },
+        });
 
-      // Mark as internal to prevent hook recursion
-      internalSessions.add(sessionId);
+        if (!sessionResult.data?.id) return '{"status": "PASS", "violations": [], "summary": "Review skipped"}';
+        sessionId = sessionResult.data.id;
+        internalSessions.add(sessionId);
 
-      const promptResult = await ctx.client.session.prompt({
-        path: { id: sessionId },
-        body: {
-          agent: "mm-constraint-reviewer",
-          tools: {},
-          parts: [{ type: "text", text: reviewPrompt }],
-        },
-      });
+        const promptResult = await ctx.client.session.prompt({
+          path: { id: sessionId },
+          body: {
+            model: model as any,
+            agent: "mm-constraint-reviewer",
+            parts: [{ type: "text", text: reviewPrompt }] as any,
+          },
+        });
 
-      if (!promptResult.data?.parts) {
-        return '{"status": "PASS", "violations": [], "summary": "Empty response"}';
-      }
+        if (!promptResult.data?.parts) return '{"status": "PASS", "violations": [], "summary": "Empty response"}';
 
-      let responseText = "";
-      for (const part of promptResult.data.parts) {
-        if (part.type === "text" && "text" in part) {
-          responseText += (part as { text: string }).text;
+        let responseText = "";
+        for (const part of promptResult.data.parts as any[]) {
+          if (part.type === "text") responseText += part.text;
+        }
+        return responseText;
+      } catch (_error) {
+        return '{"status": "PASS", "violations": [], "summary": "Review failed"}';
+      } finally {
+        if (sessionId) {
+          internalSessions.delete(sessionId);
+          await ctx.client.session.delete({ path: { id: sessionId } }).catch(() => {});
         }
       }
+    },
+  );
 
-      return responseText;
-    } catch (error) {
-      log.warn("mindmodel", `Reviewer failed: ${error instanceof Error ? error.message : "unknown"}`);
-      return '{"status": "PASS", "violations": [], "summary": "Review failed"}';
-    } finally {
-      if (sessionId) {
-        internalSessions.delete(sessionId);
-        await ctx.client.session.delete({ path: { id: sessionId } }).catch(() => {});
-      }
-    }
-  });
-
-  // PTY System
   const ptyManager = new PTYManager();
   const ptyTools = createPtyTools(ptyManager);
-
-  // Spawn agent tool (for subagents to spawn other subagents)
   const spawn_agent = createSpawnAgentTool(ctx);
-
-  // DCP Pruning Tools
+  const wait_for_agents = createWaitForAgentsTool(ctx);
   const pruningTools = createPruningTools(ctx);
-  // Slim Cartography Tools
   const cartographyTools = createCartographyTools(ctx);
-  // GSD Tools
   const gsdTools = createGsdTools(ctx);
-
-  // Octto (browser-based brainstorming) tools
   const octtoSessionStore = createSessionStore();
-
-  // LSP Tools
   const lspTools = createLspTools(lspManager);
 
-  // Track octto sessions per opencode session for cleanup
   const octtoSessionsMap = new Map<string, Set<string>>();
 
   const octtoTools = createOcttoTools(octtoSessionStore, ctx.client, {
@@ -252,14 +249,11 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       const sessions = octtoSessionsMap.get(parentSessionId);
       if (!sessions) return;
       sessions.delete(octtoSessionId);
-      if (sessions.size === 0) {
-        octtoSessionsMap.delete(parentSessionId);
-      }
+      if (sessions.size === 0) octtoSessionsMap.delete(parentSessionId);
     },
   });
 
   return {
-    // Tools
     tool: {
       ast_grep_search,
       ast_grep_replace,
@@ -270,6 +264,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       artifact_search,
       milestone_artifact_search,
       spawn_agent,
+      wait_for_agents,
       ...ptyTools,
       ...octtoTools,
       ...pruningTools,
@@ -278,10 +273,11 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
       ...lspTools,
     },
 
-    config: async (config) => {
-      // Allow all permissions globally - no prompts
+    config: async (config: Config) => {
+      await configPromise;
+
       config.permission = {
-        ...config.permission,
+        ...(config.permission || {}),
         edit: "allow",
         bash: "allow",
         webfetch: "allow",
@@ -289,105 +285,69 @@ const OpenCodeConfigPlugin: Plugin = async (ctx) => {
         external_directory: "allow",
       };
 
-      // Merge user config overrides into plugin agents
       const mergedAgents = mergeAgentConfigs(agents, userConfig);
-
-      // Inject project name into researcher prompt
       const projectName = getOrGenerateProjectName(ctx.directory);
       if (mergedAgents.researcher?.prompt) {
-        mergedAgents.researcher = {
-          ...mergedAgents.researcher,
-          prompt: mergedAgents.researcher.prompt.replace('tech="project"', `tech="${projectName}"`),
-        };
+        mergedAgents.researcher.prompt = mergedAgents.researcher.prompt.replace(
+          'tech="project"',
+          `tech="${projectName}"`,
+        );
       }
 
-      // Add our agents - our agents override OpenCode defaults
       config.agent = {
-        ...config.agent, // OpenCode defaults first
-        // Our agents override - spread these LAST so they take precedence
+        ...(config.agent || {}),
         ...Object.fromEntries(Object.entries(mergedAgents).filter(([k]) => k !== PRIMARY_AGENT_NAME)),
         [PRIMARY_AGENT_NAME]: mergedAgents[PRIMARY_AGENT_NAME],
       };
 
-      // Add MCP servers (plugin servers override defaults)
-      config.mcp = {
-        ...config.mcp,
-        ...MCP_SERVERS,
-      };
+      config.mcp = { ...(config.mcp || {}), ...MCP_SERVERS };
 
-      // Add commands
       config.command = {
-        ...config.command,
+        ...(config.command || {}),
         init: {
-          description: "Initialize project with .mindmodel/ constraints",
+          description: "Initialize project",
           agent: "project-initializer",
-          template: `Generate mindmodel for this project. $ARGUMENTS`,
+          template: "Generate mindmodel for this project. $ARGUMENTS",
         },
         ledger: {
-          description: "Create or update continuity ledger for session state",
+          description: "Update continuity ledger",
           agent: "ledger-creator",
-          template: `Update the continuity ledger. $ARGUMENTS`,
+          template: "Update the continuity ledger. $ARGUMENTS",
         },
         search: {
-          description: "Search past handoffs, plans, and ledgers",
+          description: "Search past handoffs",
           agent: "artifact-searcher",
-          template: `Search for: $ARGUMENTS`,
+          template: "Search for: $ARGUMENTS",
         },
       };
     },
 
-    "chat.message": async (input, output) => {
-      // Extract text from user message
-      const text = output.parts
-        .filter((p) => p.type === "text" && "text" in p)
-        .map((p) => (p as { text: string }).text)
+    "chat.message": async (input: any, output: any) => {
+      const text = (output.parts || [])
+        .filter((p: any) => p.type === "text")
+        .map((p: any) => p.text)
         .join(" ");
-
-      // Track if think mode was requested
       thinkModeState.set(input.sessionID, detectThinkKeyword(text));
-
-      // Check for override command
-      await constraintReviewerHook["chat.message"](input, output);
+      await (constraintReviewerHook as any)["chat.message"](input, output);
     },
 
-    "chat.params": async (input, output) => {
-      // Inject ledger context first (highest priority)
-      await ledgerLoaderHook["chat.params"](input, output);
+    "chat.params": async (input: any, output: any) => {
+      await (ledgerLoaderHook as any)["chat.params"](input, output);
+      await (dcpPrunerHook as any)["chat.params"](input, output);
+      await (cartographerHook as any)["chat.params"](input, output);
+      await (contextInjectorHook as any)["chat.params"](input, output);
+      await (enforcerHooks as any)["chat.params"](input, output);
+      await (contextWindowMonitorHook as any)["chat.params"](input, output);
 
-      // Inject DCP History Map
-      await dcpPrunerHook["chat.params"](input, output);
-
-      // Inject Atlas
-      await cartographerHook["chat.params"](input, output);
-
-      // Inject project context files
-      await contextInjectorHook["chat.params"](input, output);
-
-      // Inject Enforcers (Quality Gate + Todos)
-      // biome-ignore lint/suspicious/noExplicitAny: type mismatch workaround
-      await enforcerHooks["chat.params"](input, output as any);
-
-      // Inject context window status
-      await contextWindowMonitorHook["chat.params"](input, output);
-
-      // If think mode was requested, increase thinking budget
       if (thinkModeState.get(input.sessionID)) {
-        output.options = {
-          ...output.options,
-          thinking: {
-            type: "enabled",
-            budget_tokens: 32000,
-          },
-        };
+        output.options = { ...(output.options || {}), thinking: { type: "enabled", budget_tokens: 32000 } };
       }
     },
 
-    // Structured compaction prompt (Factory.ai / pi-mono best practices)
     "experimental.session.compacting": async (
       input: { sessionID: string },
       output: { context: string[]; prompt?: string },
     ) => {
-      // Get file operations for this session
       const fileOps = getFileOps(input.sessionID);
       const readPaths = Array.from(fileOps.read).sort();
       const modifiedPaths = Array.from(fileOps.modified).sort();
@@ -438,117 +398,72 @@ IMPORTANT:
 - Include any error messages or issues encountered`;
     },
 
-    // Tool output processing
-    "tool.execute.before": async (input: {
-      tool: string;
-      sessionID: string;
-      callID: string;
-      args?: Record<string, unknown>;
-    }) => {
-      // Enforce worktree isolation for file modifications
-      const result = await worktreeEnforcerHook["tool.execute.before"](input);
-      if (result?.error) {
-        throw new Error(result.error);
-      }
+    "tool.execute.before": async (input: any) => {
+      const result = await (worktreeEnforcerHook as any)["tool.execute.before"](input);
+      if (result?.error) throw new Error(result.error);
     },
 
-    // Tool output processing
-    "tool.execute.after": async (
-      input: { tool: string; sessionID: string; callID: string; args?: Record<string, unknown> },
-      output: { output?: string },
-    ) => {
-      // Token-aware truncation
-      await tokenAwareTruncationHook["tool.execute.after"]({ name: input.tool, sessionID: input.sessionID }, output);
-
-      // Comment checker for Edit tool
-      await commentCheckerHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-
-      // Directory-aware context injection for Read/Edit
-      await contextInjectorHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-
-      // Auto-index artifacts when written to thoughts/ directories
-      await artifactAutoIndexHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-
-      // Track file operations for ledger
-      await fileOpsTrackerHook["tool.execute.after"](
+    "tool.execute.after": async (input: any, output: any) => {
+      await (tokenAwareTruncationHook as any)["tool.execute.after"](
+        { name: input.tool, sessionID: input.sessionID },
+        output,
+      );
+      await (commentCheckerHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (contextInjectorHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (artifactAutoIndexHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (fileOpsTrackerHook as any)["tool.execute.after"](
         { tool: input.tool, sessionID: input.sessionID, args: input.args },
         output,
       );
-
-      // Track dirty files for Cartography
-      await cartographerHook["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-
-      // Track tool usage for enforcers
-      await enforcerHooks["tool.execute.after"](
+      await (cartographerHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (enforcerHooks as any)["tool.execute.after"](
         { sessionID: input.sessionID, tool: input.tool, args: input.args },
         output,
       );
-
-      // Constraint review for Edit/Write
-      await constraintReviewerHook["tool.execute.after"](
+      await (constraintReviewerHook as any)["tool.execute.after"](
         { tool: input.tool, sessionID: input.sessionID, args: input.args },
         output,
       );
     },
 
-    // Extract task from messages for mindmodel injection
-    "experimental.chat.messages.transform": async (input, output) => {
-      await dcpPrunerHook["experimental.chat.messages.transform"](input, output);
-      await mindmodelInjectorHook["experimental.chat.messages.transform"](input, output);
+    "experimental.chat.messages.transform": async (input: any, output: any) => {
+      await (dcpPrunerHook as any)["experimental.chat.messages.transform"](input, output);
+      await (mindmodelInjectorHook as any)["experimental.chat.messages.transform"](input, output);
     },
 
-    // Transform system prompt: inject mindmodel examples, filter CLAUDE.md/AGENTS.md
-    "experimental.chat.system.transform": async (input, output) => {
-      // Inject mindmodel examples first (highest priority)
-      await mindmodelInjectorHook["experimental.chat.system.transform"](input, output);
-
-      // Filter out CLAUDE.md/AGENTS.md from system prompt for our agents
-      output.system = output.system.filter((s) => {
-        // Keep entries that don't come from CLAUDE.md or AGENTS.md
-        if (s.startsWith("Instructions from:")) {
+    "experimental.chat.system.transform": async (input: any, output: any) => {
+      await (mindmodelInjectorHook as any)["experimental.chat.system.transform"](input, output);
+      output.system = (output.system || []).filter((s: any) => {
+        if (typeof s === "string" && s.startsWith("Instructions from:")) {
           const path = s.split("\n")[0];
-          if (path.includes("CLAUDE.md") || path.includes("AGENTS.md")) {
-            return false;
-          }
+          return !path.includes("CLAUDE.md") && !path.includes("AGENTS.md");
         }
         return true;
       });
     },
 
-    event: async ({ event }) => {
-      // Session cleanup (think mode + PTY + octto + constraint reviewer)
+    event: async ({ event }: any) => {
       if (event.type === "session.deleted") {
-        const props = event.properties as { info?: { id?: string } } | undefined;
-        if (props?.info?.id) {
-          const sessionId = props.info.id;
-          thinkModeState.delete(sessionId);
-          ptyManager.cleanupBySession(sessionId);
-          constraintReviewerHook.cleanupSession(sessionId);
-
-          // Cleanup octto sessions
-          const octtoSessions = octtoSessionsMap.get(sessionId);
+        const id = (event.properties as any)?.info?.id;
+        if (id) {
+          thinkModeState.delete(id);
+          ptyManager.cleanupBySession(id);
+          (constraintReviewerHook as any).cleanupSession(id);
+          const octtoSessions = octtoSessionsMap.get(id);
           if (octtoSessions) {
-            for (const octtoSessionId of octtoSessions) {
-              await octtoSessionStore.endSession(octtoSessionId).catch(() => {});
-            }
-            octtoSessionsMap.delete(sessionId);
+            for (const sid of octtoSessions) await octtoSessionStore.endSession(sid).catch(() => {});
+            octtoSessionsMap.delete(id);
           }
         }
       }
-
-      // Run all event hooks
-      await autoCompactHook.event({ event });
-      await sessionRecoveryHook.event({ event });
-      await tokenAwareTruncationHook.event({ event });
-      await contextWindowMonitorHook.event({ event });
-
-      // File ops tracker cleanup
-      await fileOpsTrackerHook.event({ event });
-
-      // Update LSP Manager
+      await (autoCompactHook as any).event({ event });
+      await (sessionRecoveryHook as any).event({ event });
+      await (tokenAwareTruncationHook as any).event({ event });
+      await (contextWindowMonitorHook as any).event({ event });
+      await (fileOpsTrackerHook as any).event({ event });
       lspManager.handleEvent(event);
     },
-  };
+  } as any;
 };
 
 export default OpenCodeConfigPlugin;

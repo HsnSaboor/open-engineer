@@ -11,7 +11,7 @@ import {
 } from "../mindmodel";
 import { log } from "../utils/logger";
 
-type ClassifyFn = (prompt: string) => Promise<string>;
+type ClassifyFn = (prompt: string, sessionID?: string) => Promise<string>;
 
 interface MessagePart {
   type: string;
@@ -99,7 +99,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
   return {
     // Hook 1: Extract task from messages and prepare injection
     "experimental.chat.messages.transform": async (
-      _input: Record<string, unknown>,
+      input: { sessionID?: string },
       output: { messages: MessageWithParts[] },
     ) => {
       // Skip if we're already classifying (prevents infinite recursion)
@@ -133,7 +133,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
           await log.info("mindmodel", "Classifying task for injection", { task: task.slice(0, 500) });
           // Classify the task
           const classifierPrompt = buildClassifierPrompt(task, mindmodel.manifest);
-          const classifierResponse = await classifyFn(classifierPrompt);
+          const classifierResponse = await classifyFn(classifierPrompt, input.sessionID);
           const categories = parseClassifierResponse(classifierResponse, mindmodel.manifest);
 
           if (categories.length === 0) {

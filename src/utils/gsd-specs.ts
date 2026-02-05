@@ -35,7 +35,7 @@ export class GsdSpecManager {
     if (!existsSync(path)) return null;
 
     // Simple parsing for now - in reality would be more robust markdown parsing
-    const content = await readFile(path, "utf-8");
+    const _content = await readFile(path, "utf-8");
     // Parsing logic to be implemented or we just return raw content for LLM to parse
     // For the agent, reading raw markdown is often better.
     return null;

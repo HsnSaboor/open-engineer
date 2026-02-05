@@ -12,7 +12,7 @@ import {
 import { config } from "../utils/config";
 import { log } from "../utils/logger";
 
-type ReviewFn = (prompt: string) => Promise<string>;
+type ReviewFn = (prompt: string, sessionID?: string) => Promise<string>;
 
 interface ReviewState {
   /** Retry count per file path */
@@ -88,7 +88,7 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
         const reviewPrompt = buildReviewPrompt(output.output || "", filePath, mindmodel, guardrailsContent);
 
         // Call reviewer
-        const reviewResponse = await reviewFn(reviewPrompt);
+        const reviewResponse = await reviewFn(reviewPrompt, input.sessionID);
         const result = parseReviewResponse(reviewResponse);
 
         if (result.status === "PASS") {

@@ -11,7 +11,12 @@ interface MessagePart {
 }
 
 interface SessionMessage {
-  info?: { role?: "user" | "assistant" };
+  info?: {
+    role?: "user" | "assistant";
+    providerID?: string;
+    modelID?: string;
+    model?: { providerID: string; modelID: string };
+  };
   parts?: MessagePart[];
 }
 
@@ -21,9 +26,9 @@ interface SessionMessagesResponse {
 
 export function createSpawnAgentTool(ctx: PluginInput) {
   return tool({
-    description: `Spawn a subagent to execute a task synchronously. The agent runs to completion and returns its result.
+    description: `Spawn a subagent to execute a task asynchronously. The tool returns a sessionID immediately.
 Use this when you are a COMMANDER or a SUBAGENT (executor, planner, project-initializer, mm-orchestrator) and need to spawn other specialists.
-For parallel execution, call spawn_agent multiple times in ONE message.`,
+For parallel execution, call spawn_agent multiple times in ONE message, then use wait_for_agents to collect results.`,
     args: {
       agent: tool.schema
         .string()
@@ -31,13 +36,35 @@ For parallel execution, call spawn_agent multiple times in ONE message.`,
       prompt: tool.schema.string().describe("Full prompt/instructions for the agent"),
       description: tool.schema.string().describe("Short description of the task"),
     },
-    execute: async (args) => {
+    execute: async (args, context) => {
       const { agent, prompt, description } = args;
 
       try {
+        // Fetch parent session's last message to inherit the model
+        const parentMessagesResp = (await ctx.client.session.messages({
+          path: { id: context.sessionID },
+          query: { directory: ctx.directory },
+        })) as SessionMessagesResponse;
+
+        const parentMessages = parentMessagesResp.data || [];
+        const lastMsg = parentMessages[parentMessages.length - 1]?.info;
+
+        let model: { providerID: string; modelID: string } | undefined;
+
+        if (lastMsg) {
+          if (lastMsg.role === "assistant" && lastMsg.providerID && lastMsg.modelID) {
+            model = { providerID: lastMsg.providerID, modelID: lastMsg.modelID };
+          } else if (lastMsg.role === "user" && lastMsg.model) {
+            model = lastMsg.model;
+          }
+        }
+
         // Create new session for the subagent
         const sessionResp = (await ctx.client.session.create({
-          body: {},
+          body: {
+            parentID: context.sessionID,
+            title: `Subagent: ${agent} - ${description}`,
+          },
           query: { directory: ctx.directory },
         })) as SessionCreateResponse;
 
@@ -46,43 +73,18 @@ For parallel execution, call spawn_agent multiple times in ONE message.`,
           return `## spawn_agent Failed\n\nFailed to create session for agent "${agent}"`;
         }
 
-        // Run the prompt synchronously (waits for completion)
-        await ctx.client.session.prompt({
+        // Run the prompt asynchronously (returns immediately)
+        await ctx.client.session.promptAsync({
           path: { id: sessionID },
           body: {
-            parts: [{ type: "text", text: prompt }],
+            parts: [{ type: "text", text: prompt }] as any,
             agent: agent,
+            model: model as any, // Inherit model from parent
           },
           query: { directory: ctx.directory },
         });
 
-        // Get the result from session messages
-        const messagesResp = (await ctx.client.session.messages({
-          path: { id: sessionID },
-          query: { directory: ctx.directory },
-        })) as SessionMessagesResponse;
-
-        // Find the last assistant message
-        const messages = messagesResp.data || [];
-        const lastAssistant = messages.filter((m) => m.info?.role === "assistant").pop();
-
-        const result =
-          lastAssistant?.parts
-            ?.filter((p) => p.type === "text" && p.text)
-            .map((p) => p.text)
-            .join("\n") || "(No response from agent)";
-
-        // Clean up session
-        await ctx.client.session
-          .delete({
-            path: { id: sessionID },
-            query: { directory: ctx.directory },
-          })
-          .catch(() => {
-            // Ignore cleanup errors
-          });
-
-        return `## ${description}\n\n**Agent**: ${agent}\n\n### Result\n\n${result}`;
+        return `## Session Triggered\n\n**Agent**: ${agent}\n**Task**: ${description}\n**SessionID**: ${sessionID}\n\n*Use wait_for_agents with this SessionID to collect results.*`;
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         return `## spawn_agent Failed\n\n**Agent**: ${agent}\n**Error**: ${errorMsg}`;

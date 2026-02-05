@@ -1,4 +1,3 @@
-import type { PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 
 // Types for LSP events (reverse engineered or from spec)
@@ -20,9 +19,10 @@ export class LspManager {
   public handleEvent(event: any) {
     if (event.type === "lsp.client.diagnostics") {
       const payload = event.payload as LspDiagnostic;
+      if (!payload?.uri) return;
       // Normalizing URI to file path if needed (simplified)
       const path = payload.uri.replace("file://", "");
-      this.diagnostics.set(path, payload.diagnostics);
+      this.diagnostics.set(path, payload.diagnostics || []);
     }
   }
 
@@ -37,7 +37,7 @@ export class LspManager {
       // All diagnostics
       for (const [p, diags] of this.diagnostics.entries()) {
         if (diags.length > 0) {
-          output += this.formatDiagnostics(p, diags) + "\n";
+          output += `${this.formatDiagnostics(p, diags)}\n`;
         }
       }
     }
@@ -50,7 +50,7 @@ export class LspManager {
     for (const [p, diags] of this.diagnostics.entries()) {
       const errors = diags.filter((d) => d.severity === 1);
       if (errors.length > 0) {
-        output += this.formatDiagnostics(p, errors) + "\n";
+        output += `${this.formatDiagnostics(p, errors)}\n`;
       }
     }
     return output;

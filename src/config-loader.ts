@@ -6,6 +6,8 @@ import { join } from "node:path";
 
 import type { AgentConfig } from "@opencode-ai/sdk";
 
+import { log } from "./utils/logger";
+
 // Minimal type for provider validation - only what we need
 export interface ProviderInfo {
   id: string;
@@ -172,8 +174,9 @@ export function mergeAgentConfigs(
             ? userOverride.model.join(", ")
             : userOverride.model;
 
-          console.warn(
-            `[open-engineer] Model(s) "${requestedModels}" for agent "${name}" not available. Using opencode default.`,
+          log.warn(
+            "open-engineer",
+            `Model(s) "${requestedModels}" for agent "${name}" not available. Using opencode default.`,
           );
           const { model: _ignored, ...safeOverrides } = userOverride;
           merged[name] = {
@@ -228,8 +231,9 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
     // Empty or whitespace-only model - treat as invalid
     const modelValue = override.model;
     if (typeof modelValue === "string" && !modelValue.trim()) {
+      // Remove async because the surrounding function is synchronous
       const { model: _removed, ...otherProps } = override;
-      console.warn(`[open-engineer] Empty model for agent "${agentName}". Using default model.`);
+      log.warn("open-engineer", `Empty model for agent "${agentName}". Using default model.`);
       if (Object.keys(otherProps).length > 0) {
         validatedAgents[agentName] = otherProps;
       }
@@ -239,7 +243,7 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
     if (Array.isArray(modelValue)) {
       if (modelValue.length === 0) {
         const { model: _removed, ...otherProps } = override;
-        console.warn(`[open-engineer] Empty model array for agent "${agentName}". Using default model.`);
+        log.warn("open-engineer", `Empty model array for agent "${agentName}". Using default model.`);
         if (Object.keys(otherProps).length > 0) {
           validatedAgents[agentName] = otherProps;
         }
@@ -258,8 +262,9 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
         validatedAgents[agentName] = { ...override, model: validModels };
       } else {
         const { model: _removed, ...otherProps } = override;
-        console.warn(
-          `[open-engineer] None of the models "${modelValue.join(", ")}" found for agent "${agentName}". Using default model.`,
+        log.warn(
+          "open-engineer",
+          `None of the models "${modelValue.join(", ")}" found for agent "${agentName}". Using default model.`,
         );
         if (Object.keys(otherProps).length > 0) {
           validatedAgents[agentName] = otherProps;
@@ -281,7 +286,7 @@ export function validateAgentModels(userConfig: MicodeConfig, providers: Provide
       } else {
         // Remove invalid model but keep other properties
         const { model: _removed, ...otherProps } = override;
-        console.warn(`[open-engineer] Model "${modelValue}" not found for agent "${agentName}". Using default model.`);
+        log.warn("open-engineer", `Model "${modelValue}" not found for agent "${agentName}". Using default model.`);
         if (Object.keys(otherProps).length > 0) {
           validatedAgents[agentName] = otherProps;
         }

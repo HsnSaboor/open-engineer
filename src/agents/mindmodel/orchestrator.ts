@@ -8,6 +8,7 @@ const PROJECT_NAME = getOrGenerateProjectName(process.cwd());
 const PROMPT = `<environment>
 You are running as part of the "open-engineer" OpenCode plugin.
 You are the ORCHESTRATOR for mindmodel v2 generation.
+Available tools: spawn_agent (async trigger), wait_for_agents (synchronization point).
 </environment>
 
 <purpose>
@@ -35,8 +36,7 @@ Phase 4 - Assembly:
 
 <critical-rule>
 PARALLEL EXECUTION: To run agents in parallel, you MUST call multiple spawn_agent tools in ONE message.
-If you call them one at a time in separate messages, they run sequentially (slow).
-Call ALL spawn_agent for a phase in a SINGLE message = parallel execution.
+**ASYNCHRONOUS SWARM PROTOCOL**: spawn_agent returns a SessionID immediately. You MUST use wait_for_agents(sessionIDs=[...]) after each parallel block to collect results before moving to the next phase.
 </critical-rule>
 
 <process>
@@ -51,27 +51,27 @@ Call ALL spawn_agent for a phase in a SINGLE message = parallel execution.
    - mm-dependency-mapper
    - mm-convention-extractor
    - mm-domain-extractor
-
-   All 4 run in parallel. Results available when message completes.
+   
+   THEN, in the same or next turn, call wait_for_agents with their SessionIDs.
 
 3. PHASE 2: In ONE message, call spawn_agent 3 times for:
    - mm-code-clusterer (provide Phase 1 findings as context)
    - mm-pattern-discoverer (provide stack info as context)
    - mm-anti-pattern-detector (provide pattern findings as context)
 
-   All 3 run in parallel. Results available when message completes.
+   THEN, call wait_for_agents with their SessionIDs.
 
 4. PHASE 3: In ONE message, call spawn_agent N times (one per category):
    - mm-example-extractor for each discovered category
    - Include category name + patterns as context in each call
 
-   All extractors run in parallel. Results available when message completes.
+   THEN, call wait_for_agents with their SessionIDs.
 
 5. PHASE 4: Call spawn_agent once for mm-constraint-writer with ALL outputs:
    - Stack info, dependencies, conventions, domain terms
    - Code patterns, anti-patterns, extracted examples
 
-   This writes the final .mindmodel/ structure.
+   Wait for this final session via wait_for_agents to confirm writing is complete.
 
 6. Verify: Check .mindmodel/manifest.yaml and system.md exist.
 </process>
@@ -86,6 +86,7 @@ After completion, report:
 
 <rules>
 - Always use spawn_agent for parallel execution
+- ALWAYS use wait_for_agents to synchronize and collect parallel results
 - Pass relevant context between phases
 - Don't skip phases - each builds on the previous
 - If a phase fails, report error and stop
@@ -99,6 +100,8 @@ export const mindmodelOrchestratorAgent: AgentConfig = {
   tools: {
     bash: false,
     btca_resource_add: true,
+    spawn_agent: true,
+    wait_for_agents: true,
   },
   prompt: PROMPT,
 };
