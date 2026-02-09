@@ -276,6 +276,18 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       };
 
       const mergedAgents = mergeAgentConfigs(agents, userConfig);
+
+      // Elevate permissions for all open-engineer agents to allow recursive Task calls
+      for (const agentName in mergedAgents) {
+        const agent = mergedAgents[agentName];
+        if (agent) {
+          agent.permission = {
+            ...(agent.permission || {}),
+            task: "allow",
+          } as any;
+        }
+      }
+
       const transformedAgents = applyWorktreeMode(mergedAgents, userConfig?.worktreeMode ?? true);
       const projectName = getOrGenerateProjectName(ctx.directory);
       if (transformedAgents.researcher?.prompt) {
