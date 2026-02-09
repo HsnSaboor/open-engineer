@@ -4,7 +4,7 @@ import type { Config, McpLocalConfig } from "@opencode-ai/sdk";
 // Agents
 import { agents, PRIMARY_AGENT_NAME } from "./agents";
 // Config loader
-import { loadMicodeConfig, type MicodeConfig, mergeAgentConfigs } from "./config-loader";
+import { loadMicodeConfig, mergeAgentConfigs } from "./config-loader";
 import { createArtifactAutoIndexHook } from "./hooks/artifact-auto-index";
 // Hooks
 import { createAutoCompactHook } from "./hooks/auto-compact";
@@ -31,7 +31,6 @@ import { createGsdTools } from "./tools/gsd";
 import { look_at } from "./tools/look-at";
 import { createLspTools, LspManager } from "./tools/lsp";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
-import { createOcttoTools, createSessionStore } from "./tools/octto";
 import { createPruningTools } from "./tools/pruning";
 // PTY System
 import { createPtyTools, PTYManager } from "./tools/pty";
@@ -238,24 +237,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
   const pruningTools = createPruningTools(ctx);
   const cartographyTools = createCartographyTools(ctx);
   const gsdTools = createGsdTools(ctx);
-  const octtoSessionStore = createSessionStore();
   const lspTools = createLspTools(lspManager);
-
-  const octtoSessionsMap = new Map<string, Set<string>>();
-
-  const octtoTools = createOcttoTools(octtoSessionStore, ctx.client, {
-    onCreated: (parentSessionId, octtoSessionId) => {
-      const sessions = octtoSessionsMap.get(parentSessionId) ?? new Set<string>();
-      sessions.add(octtoSessionId);
-      octtoSessionsMap.set(parentSessionId, sessions);
-    },
-    onEnded: (parentSessionId, octtoSessionId) => {
-      const sessions = octtoSessionsMap.get(parentSessionId);
-      if (!sessions) return;
-      sessions.delete(octtoSessionId);
-      if (sessions.size === 0) octtoSessionsMap.delete(parentSessionId);
-    },
-  });
 
   return {
     tool: {
@@ -270,7 +252,6 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       spawn_agent,
       wait_for_agents,
       ...ptyTools,
-      ...octtoTools,
       ...pruningTools,
       ...cartographyTools,
       ...gsdTools,
@@ -524,11 +505,6 @@ IMPORTANT:
           ptyManager.cleanupBySession(id);
           swarmManager.cleanupSession(id);
           (constraintReviewerHook as any).cleanupSession(id);
-          const octtoSessions = octtoSessionsMap.get(id);
-          if (octtoSessions) {
-            for (const sid of octtoSessions) await octtoSessionStore.endSession(sid).catch(() => {});
-            octtoSessionsMap.delete(id);
-          }
         }
       }
 
