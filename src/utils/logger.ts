@@ -1,5 +1,7 @@
 // src/utils/logger.ts
-import type { OpencodeClient } from "../tools/octto/types";
+import type { createOpencodeClient } from "@opencode-ai/sdk";
+
+type OpencodeClient = ReturnType<typeof createOpencodeClient>;
 
 let opencodeClient: OpencodeClient | null = null;
 

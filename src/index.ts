@@ -268,6 +268,13 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         external_directory: "allow",
       };
 
+      // Disable built-in agents to prefer open-engineer specialists
+      config.agent = {
+        ...(config.agent || {}),
+        general: { disable: true } as any,
+        explore: { disable: true } as any,
+      };
+
       const mergedAgents = mergeAgentConfigs(agents, userConfig);
       const transformedAgents = applyWorktreeMode(mergedAgents, userConfig?.worktreeMode ?? true);
       const projectName = getOrGenerateProjectName(ctx.directory);
