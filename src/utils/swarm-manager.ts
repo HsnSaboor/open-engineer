@@ -83,7 +83,6 @@ export class SwarmManager {
         md += `| ${p.agentName} | ${statusIcon} ${p.status} | ${p.taskDescription} | ${toolInfo} |\n`;
       }
     }
-    md += "\n> Press `<Leader>+Right` or `Ctrl+Right` to switch to subagent sessions.";
     return md;
   }
 
