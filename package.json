@@ -40,7 +40,7 @@
     "url": "https://github.com/HsnSaboor/open-engineer/issues"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "1.1.23",
+    "@opencode-ai/plugin": "1.1.53",
     "bun-pty": "^0.4.5",
     "valibot": "^1.2.0",
     "yaml": "^2.8.2"

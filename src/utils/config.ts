@@ -142,4 +142,16 @@ export const config = {
     /** Category groups for v2 structure */
     categoryGroups: ["stack", "architecture", "patterns", "style", "components", "domain", "ops"] as readonly string[],
   },
+
+  /**
+   * Worktree Orchestrator settings
+   */
+  worktree: {
+    /** Complexity score threshold to trigger sandbox prompt (1-10) */
+    complexityThreshold: 4,
+    /** Minimum number of files mentioned in prompt to boost complexity */
+    fileMentionThreshold: 2,
+    /** Keywords that indicate high complexity */
+    complexKeywords: ["refactor", "migration", "integration", "restructure", "architecture", "security", "auth"],
+  },
 } as const;

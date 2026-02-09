@@ -19,7 +19,7 @@ interface MessagePart {
 }
 
 interface MessageWithParts {
-  info: { role: string };
+  info: { role: string; sessionID?: string };
   parts: MessagePart[];
 }
 
@@ -68,8 +68,8 @@ class LRUCache<V> {
 export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: ClassifyFn) {
   let cachedMindmodel: LoadedMindmodel | null | undefined;
 
-  // Pending injection content (shared across hooks for current request)
-  let pendingInjection: string | null = null;
+  // Pending injection content per session
+  const sessionPendingInjections = new Map<string, string>();
 
   // Flag to prevent recursive classification calls
   let isClassifying = false;
@@ -99,9 +99,12 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
   return {
     // Hook 1: Extract task from messages and prepare injection
     "experimental.chat.messages.transform": async (
-      input: { sessionID?: string },
+      input: { sessionID: string },
       output: { messages: MessageWithParts[] },
     ) => {
+      const sessionID = input.sessionID || output.messages?.[0]?.info?.sessionID;
+      if (!sessionID) return;
+
       // Skip if we're already classifying (prevents infinite recursion)
       if (isClassifying) {
         return;
@@ -122,7 +125,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
         const taskHash = hashTask(task);
         const cachedInjection = classifiedTasks.get(taskHash);
         if (cachedInjection !== undefined) {
-          pendingInjection = cachedInjection;
+          if (cachedInjection) sessionPendingInjections.set(sessionID, cachedInjection);
           return;
         }
 
@@ -133,7 +136,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
           await log.info("mindmodel", "Classifying task for injection", { task: task.slice(0, 500) });
           // Classify the task
           const classifierPrompt = buildClassifierPrompt(task, mindmodel.manifest);
-          const classifierResponse = await classifyFn(classifierPrompt, input.sessionID);
+          const classifierResponse = await classifyFn(classifierPrompt, sessionID);
           const categories = parseClassifierResponse(classifierResponse, mindmodel.manifest);
 
           if (categories.length === 0) {
@@ -155,7 +158,7 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
           const formatted = formatExamplesForInjection(examples);
 
           // Store for the system transform hook and cache for future requests
-          pendingInjection = formatted;
+          sessionPendingInjections.set(sessionID, formatted);
           classifiedTasks.set(taskHash, formatted);
           await log.info("mindmodel", "Prepared examples for injection", { count: examples.length });
         } finally {
@@ -172,12 +175,13 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
     },
 
     // Hook 2: Inject into system prompt
-    "experimental.chat.system.transform": async (_input: { sessionID: string }, output: { system: string[] }) => {
-      if (!pendingInjection) return;
+    "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
+      if (!input.sessionID) return;
+      const injection = sessionPendingInjections.get(input.sessionID);
+      if (!injection) return;
 
       // Consume the pending injection
-      const injection = pendingInjection;
-      pendingInjection = null;
+      sessionPendingInjections.delete(input.sessionID);
 
       // Prepend to system prompt
       output.system.unshift(injection);

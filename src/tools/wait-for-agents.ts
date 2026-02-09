@@ -1,6 +1,8 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 
+import type { SwarmManager } from "../utils/swarm-manager";
+
 interface SessionStatus {
   type: "idle" | "retry" | "busy";
 }
@@ -19,7 +21,7 @@ interface SessionMessagesResponse {
   data?: SessionMessage[];
 }
 
-export function createWaitForAgentsTool(ctx: PluginInput) {
+export function createWaitForAgentsTool(ctx: PluginInput, swarmManager?: SwarmManager) {
   return tool({
     description: `Synchronize and collect results from multiple asynchronously spawned agents.
 This tool polls the status of the provided SessionIDs until they are all 'idle', then aggregates their final responses.`,
@@ -52,6 +54,18 @@ This tool polls the status of the provided SessionIDs until they are all 'idle',
           }
 
           if (pendingIDs.size > 0) {
+            // Update TUI with progress if swarm manager is available
+            if (swarmManager) {
+              const summary = swarmManager.getSwarmSummary(_context.sessionID);
+              _context.metadata?.({
+                title: `🐝 Waiting for ${pendingIDs.size} Agents`,
+                metadata: {
+                  summary,
+                  pending: Array.from(pendingIDs).join(", "),
+                },
+              });
+            }
+
             // Wait 1.5 seconds before next poll to be respectful to the server
             await new Promise((resolve) => setTimeout(resolve, 1500));
           }

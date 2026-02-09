@@ -1,6 +1,8 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 
+import type { SwarmManager } from "../utils/swarm-manager";
+
 interface SessionCreateResponse {
   data?: { id?: string };
 }
@@ -24,7 +26,7 @@ interface SessionMessagesResponse {
   data?: SessionMessage[];
 }
 
-export function createSpawnAgentTool(ctx: PluginInput) {
+export function createSpawnAgentTool(ctx: PluginInput, swarmManager?: SwarmManager) {
   return tool({
     description: `Spawn a subagent to execute a task asynchronously. The tool returns a sessionID immediately.
 Use this when you are a COMMANDER or a SUBAGENT (executor, planner, project-initializer, mm-orchestrator) and need to spawn other specialists.
@@ -73,6 +75,11 @@ For parallel execution, call spawn_agent multiple times in ONE message, then use
           return `## spawn_agent Failed\n\nFailed to create session for agent "${agent}"`;
         }
 
+        // Register with swarm manager if provided
+        if (swarmManager) {
+          swarmManager.registerSubagent(sessionID, context.sessionID, agent, description);
+        }
+
         // Run the prompt asynchronously (returns immediately)
         await ctx.client.session.promptAsync({
           path: { id: sessionID },
@@ -82,6 +89,12 @@ For parallel execution, call spawn_agent multiple times in ONE message, then use
             model: model as any, // Inherit model from parent
           },
           query: { directory: ctx.directory },
+        });
+
+        // Update tool metadata to link the session in TUI
+        context.metadata({
+          title: `Spawned ${agent}: ${description}`,
+          metadata: { sessionId: sessionID },
         });
 
         return `## Session Triggered\n\n**Agent**: ${agent}\n**Task**: ${description}\n**SessionID**: ${sessionID}\n\n*Use wait_for_agents with this SessionID to collect results.*`;

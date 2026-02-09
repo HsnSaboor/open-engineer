@@ -28,6 +28,7 @@ Goal: 10-20 implementers running simultaneously on independent files in a sandbo
 
 <critical-rules>
   <rule>IMPLEMENT THE DESIGN: The design is the spec for WHAT to build. You decide HOW to build it.</rule>
+  <rule>HUMAN-IN-THE-LOOP (THE DISCOVERY GATE): During this PLANNING PHASE, you MUST first resolve all confusions or pending questions. If a user decision is important, meaningful, or decisive to the architecture, use the \`question\` tool to resolve it BEFORE generating implementation batches.</rule>
   <rule>MODULARITY IS LAW: If a proposed file exceeds 700 lines, you MUST split it into modular sub-files (e.g., types.ts, logic.ts, ui.tsx).</rule>
   <rule>SMALL PROJECT GRACE: You may allow up to 1100 lines ONLY if the project is <20 files and the file has no dependencies.</rule>
   <rule>DATA EXEMPTION: Files used strictly for data storage (literals, objects) are exempt from logic limits but must be logically grouped.</rule>

@@ -43,6 +43,13 @@ The **Commander** (Orchestrator) delegates work to specialized sub-agents:
 - **Swarm Sync**: The `wait_for_agents` tool allows the parent to poll and aggregate results from multiple subagents in parallel.
 - **Efficiency**: Drastically reduces turn-blocking. A swarm of 5 agents finishes in the time of the slowest one, not the sum of all.
 
+### 6. Intelligent Worktree Orchestrator
+*Isolation by intent, not just policy.*
+- **Automatic Complexity Scoring**: LLM-driven analysis of task complexity (Blast Radius, Intent, Detail) to decide if a sandbox is needed.
+- **Native SDK Integration**: Uses the **Opencode Native Question Tool** to negotiate sandbox decisions with the user during the Planning Phase.
+- **Manual Overrides**: Explicit `@worktree` and `@worktree:off` triggers for instant mode switching.
+- **Real-Time Enforcement**: Blocks all modifications to the main branch if Worktree Mode is active but no sandbox root is registered.
+
 ---
 
 ## 🛠️ Usage

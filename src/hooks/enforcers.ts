@@ -40,7 +40,7 @@ export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
       manager.handleToolExecute(input.sessionID, input.tool, input.args);
     },
 
-    "chat.params": async (input: { sessionID: string }, output: { system?: any }) => {
+    "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
       // 1. Quality Gate (LSP)
       const errors = manager.getLspErrors();
       let injection = "";
@@ -56,13 +56,7 @@ export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
       }
 
       if (injection) {
-        if (Array.isArray(output.system)) {
-          output.system.push(injection);
-        } else if (typeof output.system === "string") {
-          output.system += injection;
-        } else {
-          output.system = injection;
-        }
+        output.system.push(injection);
       }
     },
   };

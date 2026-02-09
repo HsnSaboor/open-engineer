@@ -60,20 +60,12 @@ Review it and continue from where you left off. The "Now" item is your current f
 
 export function createLedgerLoaderHook(ctx: PluginInput) {
   return {
-    "chat.params": async (
-      _input: { sessionID: string },
-      output: { options?: Record<string, unknown>; system?: string },
-    ) => {
+    "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
       const ledger = await findCurrentLedger(ctx.directory);
       if (!ledger) return;
 
       const injection = formatLedgerInjection(ledger);
-
-      if (output.system) {
-        output.system = `${injection}\n\n${output.system}`;
-      } else {
-        output.system = injection;
-      }
+      output.system.push(injection);
     },
   };
 }

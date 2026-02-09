@@ -2,72 +2,113 @@ import * as path from "node:path";
 
 import type { PluginInput } from "@opencode-ai/plugin";
 
+export type WorktreeMode = "ON" | "OFF" | "PENDING" | "AUTO";
+
+interface SessionState {
+  mode: WorktreeMode;
+  activeWorktreeRoot?: string;
+  questionRequestID?: string;
+}
+
 /**
  * WorktreeEnforcerHook
  *
  * Ensures that file modifications (write/edit) occur within the designated
  * git worktree when Open-Engineer is in worktree mode.
+ * Supports event-driven preference tracking via the native question tool.
  */
-export function createWorktreeEnforcerHook(ctx: PluginInput) {
-  // Store the active worktree root for the current session
-  // This is set when the Commander creates a worktree
-  const activeWorktrees = new Map<string, string>();
+export function createWorktreeEnforcerHook(ctx: PluginInput, defaultMode: boolean = true) {
+  const sessionStates = new Map<string, SessionState>();
+
+  function getSessionState(sessionID: string): SessionState {
+    if (!sessionStates.has(sessionID)) {
+      sessionStates.set(sessionID, {
+        mode: defaultMode ? "AUTO" : "OFF",
+      });
+    }
+    return sessionStates.get(sessionID)!;
+  }
 
   return {
-    "tool.execute.before": async (input: { tool: string; sessionID: string; args?: Record<string, unknown> }) => {
-      const toolName = input.tool.toLowerCase();
+    setMode: (sessionID: string, mode: WorktreeMode) => {
+      const state = getSessionState(sessionID);
+      state.mode = mode;
+    },
 
-      // We only care about tools that modify files
-      if (!["write", "edit"].includes(toolName)) {
-        return;
-      }
+    getMode: (sessionID: string) => {
+      return getSessionState(sessionID).mode;
+    },
 
-      const filePath = input.args?.filePath as string | undefined;
-      if (!filePath) return;
+    event: async (input: { event: any }) => {
+      const { type, properties } = input.event;
 
-      // Resolve absolute path
-      const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(ctx.directory, filePath);
+      // Listen for the native question tool response
+      if (type === "question.replied") {
+        const sessionID = properties?.sessionID;
+        if (!sessionID) return;
 
-      // Check if this session has an active worktree
-      // We'll look for a specific marker or context in the session
-      // For now, we'll assume the Commander sets an environment variable or
-      // we detect the worktree root from the session history.
-      // IMPLEMENTATION DETAIL: Agents are now instructed to include
-      // the worktree root in their 'Context Package'.
+        const state = getSessionState(sessionID);
+        const answers = properties?.answers as string[][] | undefined;
 
-      const worktreeRoot = activeWorktrees.get(input.sessionID);
+        // Check if this reply is for a worktree preference question
+        const flatAnswers = (answers || []).flat().map((a) => a.toLowerCase());
 
-      if (worktreeRoot) {
-        // Enforce that the path is INSIDE the worktree
-        if (!absolutePath.startsWith(worktreeRoot)) {
-          return {
-            error:
-              `[S-TIER ENFORCEMENT ERROR] Modification attempted on main branch while in Worktree Mode.\n` +
-              `Attempted path: ${absolutePath}\n` +
-              `Active worktree: ${worktreeRoot}\n\n` +
-              `ACTION REQUIRED: Use the absolute path within the worktree directory. ` +
-              `Never modify the main branch directly during a sandboxed task.`,
-          };
+        if (flatAnswers.includes("🛡️ sandbox") || flatAnswers.includes("yes (sandbox)")) {
+          state.mode = "ON";
+        } else if (flatAnswers.includes("🚀 direct") || flatAnswers.includes("no (direct)")) {
+          state.mode = "OFF";
         }
-      } else {
-        // If not in worktree mode, check if we SHOULD be
-        // (e.g., if .worktrees directory exists and it's a non-trivial change)
-        // This is a soft check to remind the agent to use worktrees.
       }
     },
 
-    "chat.message": async (
-      _input: { sessionID: string },
-      output: { parts: Array<{ type: string; text?: string }> },
+    "chat.message": async (input: { sessionID: string }, output: { parts: Array<{ type: string; text?: string }> }) => {
+      const state = getSessionState(input.sessionID);
+      const text = (output.parts || [])
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join(" ");
+
+      // Handshake: Detect if the agent has set a worktree root
+      const match = text.match(/root_directory=["'](.+?)["']/);
+      if (match) {
+        state.activeWorktreeRoot = match[1];
+        state.mode = "ON";
+      }
+    },
+
+    "tool.execute.before": async (
+      input: { tool: string; sessionID: string; callID: string },
+      output: { args: Record<string, unknown> },
     ) => {
-      // Look for the worktree root in the agent's output/decisions
-      // to track which session is using which worktree
-      for (const part of output.parts) {
-        if (part.type === "text" && part.text) {
-          const match = part.text.match(/root_directory=["'](.+?\.worktrees\/agent-.+?)["']/);
-          if (match) {
-            activeWorktrees.set(_input.sessionID, match[1]);
+      const state = getSessionState(input.sessionID);
+      const toolName = input.tool.toLowerCase();
+
+      if (!["write", "edit"].includes(toolName)) return;
+
+      // Strict enforcement for Worktree Mode
+      if (state.mode === "ON") {
+        const filePath = output.args?.filePath as string | undefined;
+        if (!filePath) return;
+
+        const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(ctx.directory, filePath);
+        const worktreeRoot = state.activeWorktreeRoot;
+
+        if (worktreeRoot) {
+          if (!absolutePath.startsWith(worktreeRoot)) {
+            return {
+              error:
+                `[S-TIER ENFORCEMENT ERROR] Modification attempted on main branch while in Worktree Mode.\n` +
+                `Attempted path: ${absolutePath}\n` +
+                `Active worktree: ${worktreeRoot}\n\n` +
+                `ACTION REQUIRED: Use the absolute path within the worktree directory.`,
+            };
           }
+        } else {
+          return {
+            error:
+              `[S-TIER ENFORCEMENT ERROR] Worktree Mode is ENABLED but no active worktree root detected.\n` +
+              `ACTION REQUIRED: You MUST create a git worktree (e.g. via bash) before modifying files.`,
+          };
         }
       }
     },

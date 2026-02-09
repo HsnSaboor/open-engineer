@@ -29,17 +29,14 @@ export function createContextWindowMonitorHook(ctx: PluginInput) {
   }
 
   return {
-    // Inject context awareness into chat params
-    "chat.params": async (
-      input: { sessionID: string },
-      output: { system?: string; options?: Record<string, unknown> },
-    ) => {
+    // Inject context awareness into system prompt
+    "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
       const usageRatio = state.lastUsageRatio.get(input.sessionID);
 
       if (usageRatio && usageRatio >= config.contextWindow.warningThreshold) {
         const message = getEncouragementMessage(usageRatio);
-        if (message && output.system) {
-          output.system = `${output.system}\n\n<context-status>${message}</context-status>`;
+        if (message) {
+          output.system.push(`\n\n<context-status>${message}</context-status>`);
         }
       }
     },

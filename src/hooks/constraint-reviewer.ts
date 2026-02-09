@@ -63,7 +63,8 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
       output: { output?: string },
     ) => {
       // Only review Write and Edit operations
-      if (!["Write", "Edit"].includes(input.tool)) return;
+      const toolName = input.tool.toLowerCase();
+      if (!["write", "edit"].includes(toolName)) return;
       if (!config.mindmodel.reviewEnabled) return;
 
       const mindmodel = await getMindmodel();
@@ -77,7 +78,7 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
         return;
       }
 
-      const filePath = input.args?.file_path as string | undefined;
+      const filePath = input.args?.filePath as string | undefined;
       if (!filePath) return;
 
       try {

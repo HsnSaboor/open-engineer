@@ -68,6 +68,11 @@ export interface DcpConfig {
 export interface MicodeConfig {
   agents?: Record<string, AgentOverride>;
   dcp?: DcpConfig;
+  worktreeMode?: boolean;
+  ui?: {
+    streamSubagentThoughts?: boolean;
+    showStatusBoard?: boolean;
+  };
 }
 
 /**
@@ -109,6 +114,14 @@ export async function loadMicodeConfig(configDir?: string): Promise<MicodeConfig
 
     if (parsed.dcp) {
       result.dcp = parsed.dcp as DcpConfig;
+    }
+
+    if (typeof parsed.worktreeMode === "boolean") {
+      result.worktreeMode = parsed.worktreeMode;
+    }
+
+    if (parsed.ui && typeof parsed.ui === "object") {
+      result.ui = parsed.ui as MicodeConfig["ui"];
     }
 
     return result;

@@ -126,20 +126,12 @@ export function createContextInjectorHook(ctx: PluginInput) {
 
   return {
     // Inject project root context into every chat
-    "chat.params": async (
-      _input: { sessionID: string },
-      output: { options?: Record<string, unknown>; system?: string },
-    ) => {
+    "experimental.chat.system.transform": async (_input: { sessionID: string }, output: { system: string[] }) => {
       const files = await loadRootContextFiles();
       if (files.size === 0) return;
 
       const contextBlock = formatContextBlock(files, "project-context");
-
-      if (output.system) {
-        output.system = output.system + contextBlock;
-      } else {
-        output.system = contextBlock;
-      }
+      output.system.push(contextBlock);
     },
 
     // Inject directory-specific context when reading/editing files

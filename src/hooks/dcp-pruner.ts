@@ -25,11 +25,10 @@ export function createDcpPrunerHook(ctx: PluginInput) {
     "experimental.chat.messages.transform": async (input: any, output: { messages: unknown[] }) => {
       await initialize();
 
-      if (!isEnabled || !pruningManager || !input.sessionID) {
+      const sessionID = input.sessionID || (output.messages?.[0] as any)?.info?.sessionID;
+      if (!isEnabled || !pruningManager || !sessionID) {
         return;
       }
-
-      const sessionID = input.sessionID as string;
 
       try {
         // Cast to our Message type
@@ -56,23 +55,13 @@ export function createDcpPrunerHook(ctx: PluginInput) {
       }
     },
 
-    "chat.params": async (
-      input: { sessionID: string },
-      output: { options?: Record<string, unknown>; system?: any },
-    ) => {
+    "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
       if (!isEnabled) return;
 
       const map = historyMaps.get(input.sessionID);
       if (map) {
         const injection = `\n\n<!-- DCP History Map -->\nHere is the indexed history of tool calls. Use the ID to 'extract' findings or 'discard' noise.\n${map}\n<!-- End Map -->`;
-
-        if (Array.isArray(output.system)) {
-          output.system.push(injection);
-        } else if (typeof output.system === "string") {
-          output.system += injection;
-        } else {
-          output.system = injection;
-        }
+        output.system.push(injection);
       }
     },
   };

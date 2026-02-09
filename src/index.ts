@@ -39,6 +39,8 @@ import { createSpawnAgentTool } from "./tools/spawn-agent";
 import { createWaitForAgentsTool } from "./tools/wait-for-agents";
 import { log, setLoggerClient } from "./utils/logger";
 import { getOrGenerateProjectName } from "./utils/project-config";
+import { applyWorktreeMode } from "./utils/prompt-transformer";
+import { SwarmManager } from "./utils/swarm-manager";
 
 const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   // Initialize background logger
@@ -110,13 +112,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
     })
     .catch(() => {});
 
-  const configPromise = loadMicodeConfig();
-  let userConfig: MicodeConfig | null = null;
-  configPromise
-    .then((c) => {
-      userConfig = c;
-    })
-    .catch(() => {});
+  const userConfig = await loadMicodeConfig();
 
   // Think mode state per session
   const thinkModeState = new Map<string, boolean>();
@@ -131,13 +127,16 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
   const commentCheckerHook = createCommentCheckerHook(ctx);
   const artifactAutoIndexHook = createArtifactAutoIndexHook(ctx);
   const fileOpsTrackerHook = createFileOpsTrackerHook(ctx);
-  const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx);
+  const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx, userConfig?.worktreeMode ?? true);
   const dcpPrunerHook = createDcpPrunerHook(ctx);
   const cartographerHook = createCartographerHook(ctx);
 
   // LSP & Enforcers
   const lspManager = new LspManager();
   const enforcerHooks = createEnforcerHooks(ctx, lspManager);
+
+  // Track tool call arguments to bridge before/after hooks
+  const toolCallArgs = new Map<string, any>();
 
   // Track internal sessions
   const internalSessions = new Set<string>();
@@ -151,6 +150,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
       const sessionResult = await ctx.client.session.create({
         body: { title: "mindmodel-classifier" },
+        query: { directory: ctx.directory },
       });
 
       if (!sessionResult.data?.id) return "[]";
@@ -159,6 +159,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
       const promptResult = await ctx.client.session.prompt({
         path: { id: sessionId },
+        query: { directory: ctx.directory },
         body: {
           model: model as any,
           parts: [{ type: "text", text: classifierPrompt }] as any,
@@ -194,6 +195,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
         const sessionResult = await ctx.client.session.create({
           body: { title: "constraint-reviewer" },
+          query: { directory: ctx.directory },
         });
 
         if (!sessionResult.data?.id) return '{"status": "PASS", "violations": [], "summary": "Review skipped"}';
@@ -202,6 +204,7 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
         const promptResult = await ctx.client.session.prompt({
           path: { id: sessionId },
+          query: { directory: ctx.directory },
           body: {
             model: model as any,
             agent: "mm-constraint-reviewer",
@@ -229,8 +232,9 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
   const ptyManager = new PTYManager();
   const ptyTools = createPtyTools(ptyManager);
-  const spawn_agent = createSpawnAgentTool(ctx);
-  const wait_for_agents = createWaitForAgentsTool(ctx);
+  const swarmManager = new SwarmManager(ctx);
+  const spawn_agent = createSpawnAgentTool(ctx, swarmManager);
+  const wait_for_agents = createWaitForAgentsTool(ctx, swarmManager);
   const pruningTools = createPruningTools(ctx);
   const cartographyTools = createCartographyTools(ctx);
   const gsdTools = createGsdTools(ctx);
@@ -274,8 +278,6 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
     },
 
     config: async (config: Config) => {
-      await configPromise;
-
       config.permission = {
         ...(config.permission || {}),
         edit: "allow",
@@ -286,9 +288,10 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       };
 
       const mergedAgents = mergeAgentConfigs(agents, userConfig);
+      const transformedAgents = applyWorktreeMode(mergedAgents, userConfig?.worktreeMode ?? true);
       const projectName = getOrGenerateProjectName(ctx.directory);
-      if (mergedAgents.researcher?.prompt) {
-        mergedAgents.researcher.prompt = mergedAgents.researcher.prompt.replace(
+      if (transformedAgents.researcher?.prompt) {
+        transformedAgents.researcher.prompt = transformedAgents.researcher.prompt.replace(
           'tech="project"',
           `tech="${projectName}"`,
         );
@@ -296,8 +299,8 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
       config.agent = {
         ...(config.agent || {}),
-        ...Object.fromEntries(Object.entries(mergedAgents).filter(([k]) => k !== PRIMARY_AGENT_NAME)),
-        [PRIMARY_AGENT_NAME]: mergedAgents[PRIMARY_AGENT_NAME],
+        ...Object.fromEntries(Object.entries(transformedAgents).filter(([k]) => k !== PRIMARY_AGENT_NAME)),
+        [PRIMARY_AGENT_NAME]: transformedAgents[PRIMARY_AGENT_NAME],
       };
 
       config.mcp = { ...(config.mcp || {}), ...MCP_SERVERS };
@@ -327,18 +330,37 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         .filter((p: any) => p.type === "text")
         .map((p: any) => p.text)
         .join(" ");
+
+      // Intercept worktree triggers
+      if (text.includes("@worktree:off")) {
+        (worktreeEnforcerHook as any).setMode(input.sessionID, "OFF");
+        await ctx.client.tui
+          .showToast({
+            body: {
+              title: "Worktree Enforcer",
+              message: "Worktree mode DISABLED for this session.",
+              variant: "info",
+            },
+          })
+          .catch(() => {});
+      } else if (text.includes("@worktree")) {
+        (worktreeEnforcerHook as any).setMode(input.sessionID, "ON");
+        await ctx.client.tui
+          .showToast({
+            body: {
+              title: "Worktree Enforcer",
+              message: "Worktree mode ENABLED for this session.",
+              variant: "success",
+            },
+          })
+          .catch(() => {});
+      }
+
       thinkModeState.set(input.sessionID, detectThinkKeyword(text));
       await (constraintReviewerHook as any)["chat.message"](input, output);
     },
 
     "chat.params": async (input: any, output: any) => {
-      await (ledgerLoaderHook as any)["chat.params"](input, output);
-      await (dcpPrunerHook as any)["chat.params"](input, output);
-      await (cartographerHook as any)["chat.params"](input, output);
-      await (contextInjectorHook as any)["chat.params"](input, output);
-      await (enforcerHooks as any)["chat.params"](input, output);
-      await (contextWindowMonitorHook as any)["chat.params"](input, output);
-
       if (thinkModeState.get(input.sessionID)) {
         output.options = { ...(output.options || {}), thinking: { type: "enabled", budget_tokens: 32000 } };
       }
@@ -398,32 +420,66 @@ IMPORTANT:
 - Include any error messages or issues encountered`;
     },
 
-    "tool.execute.before": async (input: any) => {
-      const result = await (worktreeEnforcerHook as any)["tool.execute.before"](input);
+    "tool.execute.before": async (input: any, output: any) => {
+      // Store arguments for use in 'after' hook
+      if (input.callID && output.args) {
+        toolCallArgs.set(input.callID, output.args);
+      }
+
+      // Mirror subagent tool calls via toasts
+      if (userConfig?.ui?.showStatusBoard !== false) {
+        const parentID = swarmManager.getParentID(input.sessionID);
+        if (parentID) {
+          swarmManager.updateProgress(input.sessionID, {
+            status: "busy",
+            lastTool: input.tool,
+            lastToolArgs: output.args,
+          });
+
+          await ctx.client.tui
+            .showToast({
+              body: {
+                title: `🛠️ ${input.tool} (Subagent)`,
+                message: `Agent is running ${input.tool}...`,
+                variant: "info",
+              },
+            })
+            .catch(() => {});
+        }
+      }
+
+      const result = await (worktreeEnforcerHook as any)["tool.execute.before"](input, output);
       if (result?.error) throw new Error(result.error);
     },
 
     "tool.execute.after": async (input: any, output: any) => {
+      const args = toolCallArgs.get(input.callID);
+
       await (tokenAwareTruncationHook as any)["tool.execute.after"](
         { name: input.tool, sessionID: input.sessionID },
         output,
       );
-      await (commentCheckerHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-      await (contextInjectorHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
-      await (artifactAutoIndexHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (commentCheckerHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
+      await (contextInjectorHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
+      await (artifactAutoIndexHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
       await (fileOpsTrackerHook as any)["tool.execute.after"](
-        { tool: input.tool, sessionID: input.sessionID, args: input.args },
+        { tool: input.tool, sessionID: input.sessionID, args },
         output,
       );
-      await (cartographerHook as any)["tool.execute.after"]({ tool: input.tool, args: input.args }, output);
+      await (cartographerHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
       await (enforcerHooks as any)["tool.execute.after"](
-        { sessionID: input.sessionID, tool: input.tool, args: input.args },
+        { sessionID: input.sessionID, tool: input.tool, args },
         output,
       );
       await (constraintReviewerHook as any)["tool.execute.after"](
-        { tool: input.tool, sessionID: input.sessionID, args: input.args },
+        { tool: input.tool, sessionID: input.sessionID, args },
         output,
       );
+
+      // Cleanup stored arguments
+      if (input.callID) {
+        toolCallArgs.delete(input.callID);
+      }
     },
 
     "experimental.chat.messages.transform": async (input: any, output: any) => {
@@ -433,6 +489,24 @@ IMPORTANT:
 
     "experimental.chat.system.transform": async (input: any, output: any) => {
       await (mindmodelInjectorHook as any)["experimental.chat.system.transform"](input, output);
+      await (ledgerLoaderHook as any)["experimental.chat.system.transform"]?.(input, output);
+      await (dcpPrunerHook as any)["experimental.chat.system.transform"]?.(input, output);
+      await (cartographerHook as any)["experimental.chat.system.transform"]?.(input, output);
+      await (contextInjectorHook as any)["experimental.chat.system.transform"]?.(input, output);
+      await (enforcerHooks as any)["experimental.chat.system.transform"]?.(input, output);
+      await (contextWindowMonitorHook as any)["experimental.chat.system.transform"]?.(input, output);
+
+      // Worktree Orchestrator System Instruction
+      const wtMode = (worktreeEnforcerHook as any).getMode(input.sessionID);
+      if (wtMode === "AUTO" || wtMode === "PENDING") {
+        output.system.push(
+          `[SYSTEM]: Worktree Mode is set to AUTO. For any task with non-trivial complexity (>1 file or refactor), ` +
+            `you MUST use the native 'question' tool to ask the user: "This task involves significant changes. Enable worktree sandbox?" ` +
+            `with options [{"label": "🛡️ Sandbox", "description": "Safe isolation"}, {"label": "🚀 Direct", "description": "Fast edits"}]. ` +
+            `Do NOT proceed with file modifications until the user answers.`,
+        );
+      }
+
       output.system = (output.system || []).filter((s: any) => {
         if (typeof s === "string" && s.startsWith("Instructions from:")) {
           const path = s.split("\n")[0];
@@ -448,6 +522,7 @@ IMPORTANT:
         if (id) {
           thinkModeState.delete(id);
           ptyManager.cleanupBySession(id);
+          swarmManager.cleanupSession(id);
           (constraintReviewerHook as any).cleanupSession(id);
           const octtoSessions = octtoSessionsMap.get(id);
           if (octtoSessions) {
@@ -456,11 +531,33 @@ IMPORTANT:
           }
         }
       }
+
+      // Track subagent status transitions
+      if (event.type === "session.idle") {
+        const id = event.properties?.sessionID;
+        if (id) {
+          await swarmManager.updateProgress(id, { status: "idle", lastTool: undefined });
+        }
+      }
+
+      if (event.type === "message.part.updated") {
+        const sessionID = event.properties?.part?.sessionID;
+        const delta = event.properties?.delta;
+        if (sessionID && delta) {
+          const parentID = swarmManager.getParentID(sessionID);
+          if (parentID) {
+            // Update busy status
+            await swarmManager.updateProgress(sessionID, { status: "busy" });
+          }
+        }
+      }
+
       await (autoCompactHook as any).event({ event });
       await (sessionRecoveryHook as any).event({ event });
       await (tokenAwareTruncationHook as any).event({ event });
       await (contextWindowMonitorHook as any).event({ event });
       await (fileOpsTrackerHook as any).event({ event });
+      await (worktreeEnforcerHook as any).event({ event });
       lspManager.handleEvent(event);
     },
   } as any;

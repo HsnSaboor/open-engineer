@@ -30,20 +30,11 @@ export function createCartographerHook(ctx: PluginInput) {
       }
     },
 
-    "chat.params": async (
-      _input: { sessionID: string },
-      output: { options?: Record<string, unknown>; system?: any },
-    ) => {
+    "experimental.chat.system.transform": async (_input: { sessionID: string }, output: { system: string[] }) => {
       await initialize();
       const summary = cartographer!.generateAtlasSummary();
       if (summary) {
-        if (Array.isArray(output.system)) {
-          output.system.push(summary);
-        } else if (typeof output.system === "string") {
-          output.system += `\n\n${summary}`;
-        } else {
-          output.system = summary;
-        }
+        output.system.push(summary);
       }
     },
   };
