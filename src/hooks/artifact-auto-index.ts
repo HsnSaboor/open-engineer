@@ -1,7 +1,7 @@
 // src/hooks/artifact-auto-index.ts
 // Auto-indexes artifacts when written to thoughts/ directories
 
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 
 import type { PluginInput } from "@opencode-ai/plugin";
 
@@ -87,7 +87,7 @@ export function createArtifactAutoIndexHook(_ctx: PluginInput) {
         // Check if it's a ledger
         const ledgerMatch = filePath.match(LEDGER_PATH_PATTERN);
         if (ledgerMatch) {
-          const content = readFileSync(filePath, "utf-8");
+          const content = await readFile(filePath, "utf-8");
           const index = await getArtifactIndex();
           const record = parseLedger(content, filePath, ledgerMatch[1]);
           await index.indexLedger(record);
@@ -97,7 +97,7 @@ export function createArtifactAutoIndexHook(_ctx: PluginInput) {
         // Check if it's a plan
         const planMatch = filePath.match(PLAN_PATH_PATTERN);
         if (planMatch) {
-          const content = readFileSync(filePath, "utf-8");
+          const content = await readFile(filePath, "utf-8");
           const index = await getArtifactIndex();
           const record = parsePlan(content, filePath, planMatch[1]);
           await index.indexPlan(record);

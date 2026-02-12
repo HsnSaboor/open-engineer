@@ -1,11 +1,11 @@
 import { tool } from "@opencode-ai/plugin/tool";
+import type { Event } from "@opencode-ai/sdk";
 
-// Types for LSP events (reverse engineered or from spec)
 interface LspDiagnostic {
   uri: string;
   diagnostics: Array<{
     range: { start: { line: number; character: number }; end: { line: number; character: number } };
-    severity: number; // 1: Error, 2: Warning, 3: Info, 4: Hint
+    severity: number;
     code?: string | number;
     source?: string;
     message: string;
@@ -15,14 +15,11 @@ interface LspDiagnostic {
 export class LspManager {
   private diagnostics: Map<string, LspDiagnostic["diagnostics"]> = new Map();
 
-  // Handle incoming events
-  public handleEvent(event: any) {
+  public handleEvent(event: Event) {
     if (event.type === "lsp.client.diagnostics") {
-      const payload = event.payload as LspDiagnostic;
-      if (!payload?.uri) return;
-      // Normalizing URI to file path if needed (simplified)
-      const path = payload.uri.replace("file://", "");
-      this.diagnostics.set(path, payload.diagnostics || []);
+      const properties = event.properties as { serverID?: string; path?: string };
+      if (!properties?.path) return;
+      this.diagnostics.set(properties.path, []);
     }
   }
 

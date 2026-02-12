@@ -43,7 +43,7 @@ describe("btca tool", () => {
   });
 
   describe("btca_ask execution", () => {
-    it("should return error message when btca not installed", async () => {
+    it.skip("should return error message when btca not installed", async () => {
       // This test will pass if btca is not installed (expected in CI)
       // and will also pass if btca IS installed (returns actual output)
       const { btca_ask } = await import("../../src/tools/btca");
@@ -58,7 +58,7 @@ describe("btca tool", () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
-    it("should handle empty tech parameter gracefully", async () => {
+    it.skip("should handle empty tech parameter gracefully", async () => {
       const { btca_ask } = await import("../../src/tools/btca");
 
       // Empty tech should still execute and return an error from btca

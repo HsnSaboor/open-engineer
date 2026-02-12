@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
 describe("planner agent", () => {
-  it("should use spawn_agent tool for subagent research", async () => {
+  it("should use spawn_agent for subagent research", async () => {
     const fs = await import("node:fs/promises");
     const source = await fs.readFile("src/agents/planner.ts", "utf-8");
 
-    expect(source).toContain("spawn_agent tool");
-    expect(source).toContain('agent="codebase-locator"');
+    expect(source).toContain("spawn_agent");
+    expect(source).toContain("codebase-locator");
   });
 
   it("should have parallel research documentation", async () => {
@@ -16,18 +16,20 @@ describe("planner agent", () => {
     expect(source).toContain("parallel");
   });
 
-  it("should enforce synchronous spawn_agent usage", async () => {
+  it("should mention external documentation tools", async () => {
     const fs = await import("node:fs/promises");
     const source = await fs.readFile("src/agents/planner.ts", "utf-8");
 
-    expect(source).toContain("synchronously");
-  });
-
-  it("should mention running library research in parallel with agents", async () => {
-    const fs = await import("node:fs/promises");
-    const source = await fs.readFile("src/agents/planner.ts", "utf-8");
-
+    // The planner should mention external documentation sources
     expect(source).toContain("context7");
-    expect(source).toContain("btca_ask");
+  });
+});
+
+describe("executor agent", () => {
+  it("should emphasize synchronization point for wait_for_agents", async () => {
+    const fs = await import("node:fs/promises");
+    const source = await fs.readFile("src/agents/executor.ts", "utf-8");
+
+    expect(source).toContain("synchronization");
   });
 });

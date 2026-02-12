@@ -46,7 +46,7 @@ describe("config-loader", () => {
 
   it("should return null for invalid JSON", async () => {
     const configPath = join(testConfigDir, "open-engineer.json");
-    writeFileSync(configPath, "{ invalid json }");
+    writeFileSync(configPath, "{ [ }"); // Truly invalid YAML/JSON
 
     const config = await loadMicodeConfig(testConfigDir);
     expect(config).toBeNull();
@@ -96,8 +96,8 @@ describe("config-loader", () => {
 
     const config = await loadMicodeConfig(testConfigDir);
 
-    // agents: null is not an object, so it falls through to return the raw parsed value
-    expect(config).toEqual({ agents: null });
+    // agents: null violates the schema (expected record), so it returns null
+    expect(config).toBeNull();
   });
 
   it("should handle config with no agents key", async () => {
@@ -110,7 +110,7 @@ describe("config-loader", () => {
     expect(config?.agents).toBeUndefined();
   });
 
-  it("should handle non-object agent entries", async () => {
+  it("should return null for non-object agent entries", async () => {
     const configPath = join(testConfigDir, "open-engineer.json");
     writeFileSync(
       configPath,
@@ -125,16 +125,13 @@ describe("config-loader", () => {
 
     const config = await loadMicodeConfig(testConfigDir);
 
-    expect(config).not.toBeNull();
-    // Non-object entries should be skipped, only valid ones kept
-    expect(config?.agents?.commander).toBeUndefined();
-    expect(config?.agents?.brainstormer).toBeUndefined();
-    expect(config?.agents?.planner?.model).toBe("openai/gpt-4o");
+    // Schema violation (commander is string) results in null config
+    expect(config).toBeNull();
   });
 });
 
 describe("mergeAgentConfigs", () => {
-  it("should merge user config into plugin agents", () => {
+  it("should merge user config into plugin agents", async () => {
     const pluginAgents = {
       commander: {
         description: "Main agent",
@@ -152,7 +149,7 @@ describe("mergeAgentConfigs", () => {
     };
     const availableModels = new Set(["openai/gpt-4o", "anthropic/claude-opus-4-5"]);
 
-    const merged = mergeAgentConfigs(pluginAgents, userConfig, availableModels);
+    const merged = await mergeAgentConfigs(pluginAgents, userConfig, availableModels);
 
     expect(merged.commander.model).toBe("openai/gpt-4o");
     expect(merged.commander.temperature).toBe(0.5);
@@ -161,7 +158,7 @@ describe("mergeAgentConfigs", () => {
     expect(merged.commander.prompt).toBe("System prompt");
   });
 
-  it("should not modify agents without user overrides", () => {
+  it("should not modify agents without user overrides", async () => {
     const pluginAgents = {
       commander: {
         description: "Main agent",
@@ -180,13 +177,13 @@ describe("mergeAgentConfigs", () => {
     };
     const availableModels = new Set(["openai/gpt-4o", "anthropic/claude-opus-4-5"]);
 
-    const merged = mergeAgentConfigs(pluginAgents, userConfig, availableModels);
+    const merged = await mergeAgentConfigs(pluginAgents, userConfig, availableModels);
 
     expect(merged.commander.model).toBe("openai/gpt-4o");
     expect(merged.brainstormer.model).toBe("anthropic/claude-opus-4-5");
   });
 
-  it("should handle null user config", () => {
+  it("should handle null user config", async () => {
     const pluginAgents = {
       commander: {
         description: "Main agent",
@@ -194,7 +191,7 @@ describe("mergeAgentConfigs", () => {
       },
     };
 
-    const merged = mergeAgentConfigs(pluginAgents, null);
+    const merged = await mergeAgentConfigs(pluginAgents, null);
 
     expect(merged.commander.model).toBe("anthropic/claude-opus-4-5");
   });

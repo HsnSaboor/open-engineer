@@ -23,6 +23,8 @@ describe("mindmodel-orchestrator agent", () => {
     expect(mindmodelOrchestratorAgent.tools).toEqual({
       bash: false,
       btca_resource_add: true,
+      spawn_agent: true,
+      wait_for_agents: true,
     });
   });
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,20 +9,31 @@ import { ArtifactIndex } from "../../../src/tools/artifact-index";
 
 describe("milestone artifact ingest error paths", () => {
   let testDir: string;
-  let consoleErrorSpy: ReturnType<typeof spyOn>;
+  let logErrorMock: any;
+  let mockClient: any;
 
   beforeEach(() => {
     testDir = join(tmpdir(), `milestone-error-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
-    consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+
+    // Mock logger client
+    logErrorMock = mock(() => Promise.resolve());
+    mockClient = {
+      app: {
+        log: logErrorMock,
+      },
+    };
   });
 
   afterEach(() => {
     rmSync(testDir, { recursive: true, force: true });
-    consoleErrorSpy.mockRestore();
   });
 
   it("falls back to session when classifier fails", async () => {
+    // Setup logger mock
+    const { setLoggerClient } = await import("../../../src/utils/logger");
+    setLoggerClient(mockClient);
+
     const index = new ArtifactIndex(testDir);
     await index.initialize();
 
@@ -49,7 +60,8 @@ describe("milestone artifact ingest error paths", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].artifactType).toBe(MILESTONE_ARTIFACT_TYPES.SESSION);
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      // Verify logger was called
+      expect(logErrorMock).toHaveBeenCalled();
     } finally {
       await index.close();
     }

@@ -1,6 +1,7 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 
+import { isSessionBuiltin } from "../utils/agent-tracker";
 import type { SwarmManager } from "../utils/swarm-manager";
 
 interface SessionCreateResponse {
@@ -39,6 +40,10 @@ For parallel execution, call spawn_agent multiple times in ONE message, then use
       description: tool.schema.string().describe("Short description of the task"),
     },
     execute: async (args, context) => {
+      if (isSessionBuiltin(context.sessionID)) {
+        return `## spawn_agent Not Available\n\nThis tool is not available for built-in agents. Use the native Task tool instead.`;
+      }
+
       const { agent, prompt, description } = args;
 
       try {

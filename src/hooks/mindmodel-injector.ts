@@ -187,5 +187,9 @@ export function createMindmodelInjectorHook(ctx: PluginInput, classifyFn: Classi
       output.system.unshift(injection);
       await log.debug("mindmodel", "Injected examples into system prompt");
     },
+
+    cleanupSession: (sessionID: string) => {
+      sessionPendingInjections.delete(sessionID);
+    },
   };
 }

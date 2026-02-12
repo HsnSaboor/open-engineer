@@ -30,6 +30,10 @@ export class EnforcerManager {
   public getLspErrors(): string {
     return this.lspManager.getErrors();
   }
+
+  public cleanupSession(sessionID: string) {
+    this.todos.delete(sessionID);
+  }
 }
 
 export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
@@ -58,6 +62,10 @@ export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
       if (injection) {
         output.system.push(injection);
       }
+    },
+
+    cleanupSession: (sessionID: string) => {
+      manager.cleanupSession(sessionID);
     },
   };
 }

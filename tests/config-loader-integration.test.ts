@@ -26,7 +26,7 @@ describe("config-loader integration", () => {
     }
   });
 
-  it("should merge user overrides for all agents including mm-orchestrator", () => {
+  it("should merge user overrides for all agents including mm-orchestrator", async () => {
     const userConfig = {
       agents: {
         "mm-orchestrator": { model: "openai/gpt-4o" },
@@ -37,7 +37,7 @@ describe("config-loader integration", () => {
 
     const availableModels = new Set(["openai/gpt-4o", "openai/gpt-5.2-codex"]);
 
-    const merged = mergeAgentConfigs(agents, userConfig, availableModels);
+    const merged = await mergeAgentConfigs(agents, userConfig, availableModels);
 
     // Check mm-orchestrator was merged correctly
     expect(merged["mm-orchestrator"]).toBeDefined();
@@ -49,7 +49,7 @@ describe("config-loader integration", () => {
     expect(merged.commander.model).toBeUndefined();
   });
 
-  it("should preserve all agent properties when merging", () => {
+  it("should preserve all agent properties when merging", async () => {
     const userConfig = {
       agents: {
         "mm-orchestrator": { model: "openai/gpt-4o", temperature: 0.5 },
@@ -58,7 +58,7 @@ describe("config-loader integration", () => {
 
     const availableModels = new Set(["openai/gpt-4o", "openai/gpt-5.2-codex"]);
 
-    const merged = mergeAgentConfigs(agents, userConfig, availableModels);
+    const merged = await mergeAgentConfigs(agents, userConfig, availableModels);
 
     const mo = merged["mm-orchestrator"];
     expect(mo.model).toBe("openai/gpt-4o");

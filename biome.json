@@ -48,7 +48,7 @@
   },
   "overrides": [
     {
-      "includes": ["inspo/**", "dist/**", "node_modules/**"],
+      "includes": [".opencode/**", "inspo/**", "dist/**", "node_modules/**"],
       "linter": { "enabled": false },
       "formatter": { "enabled": false }
     }

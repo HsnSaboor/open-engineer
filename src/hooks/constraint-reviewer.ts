@@ -78,7 +78,8 @@ export function createConstraintReviewerHook(ctx: PluginInput, reviewFn: ReviewF
         return;
       }
 
-      const filePath = input.args?.filePath as string | undefined;
+      // Support both camelCase (SDK types) and snake_case (tool arguments)
+      const filePath = (input.args?.filePath || input.args?.file_path) as string | undefined;
       if (!filePath) return;
 
       try {

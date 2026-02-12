@@ -1,12 +1,9 @@
 import type { Hooks, Plugin, PluginInput } from "@opencode-ai/plugin";
-import type { Config, McpLocalConfig } from "@opencode-ai/sdk";
+import type { Config, McpLocalConfig, Part, TextPart } from "@opencode-ai/sdk";
 
-// Agents
 import { agents, PRIMARY_AGENT_NAME } from "./agents";
-// Config loader
 import { loadMicodeConfig, mergeAgentConfigs } from "./config-loader";
 import { createArtifactAutoIndexHook } from "./hooks/artifact-auto-index";
-// Hooks
 import { createAutoCompactHook } from "./hooks/auto-compact";
 import { createCartographerHook } from "./hooks/cartographer";
 import { createCommentCheckerHook } from "./hooks/comment-checker";
@@ -20,9 +17,8 @@ import { createLedgerLoaderHook } from "./hooks/ledger-loader";
 import { createMindmodelInjectorHook } from "./hooks/mindmodel-injector";
 import { createSessionRecoveryHook } from "./hooks/session-recovery";
 import { createTokenAwareTruncationHook } from "./hooks/token-aware-truncation";
-import { createWorktreeEnforcerHook } from "./hooks/worktree-enforcer";
+import { createWorktreeModeHook } from "./hooks/worktree-mode";
 import { artifact_search } from "./tools/artifact-search";
-// Tools
 import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tools/ast-grep";
 import { btca_ask, checkBtcaAvailable } from "./tools/btca";
 import { btca_resource_add, btca_resource_list } from "./tools/btca/manage";
@@ -32,212 +28,116 @@ import { look_at } from "./tools/look-at";
 import { createLspTools, LspManager } from "./tools/lsp";
 import { milestone_artifact_search } from "./tools/milestone-artifact-search";
 import { createPruningTools } from "./tools/pruning";
-// PTY System
 import { createPtyTools, PTYManager } from "./tools/pty";
 import { createSpawnAgentTool } from "./tools/spawn-agent";
 import { createWaitForAgentsTool } from "./tools/wait-for-agents";
+import { createWisdomTools } from "./tools/wisdom/extract-antipatterns";
+import {
+  cleanupSession as cleanupAgentSession,
+  isBuiltinAgent,
+  isSessionBuiltin,
+  setSessionAgent,
+} from "./utils/agent-tracker";
+import { runInternalPrompt } from "./utils/internal-prompt";
 import { log, setLoggerClient } from "./utils/logger";
 import { getOrGenerateProjectName } from "./utils/project-config";
 import { applyWorktreeMode } from "./utils/prompt-transformer";
 import { SwarmManager } from "./utils/swarm-manager";
 
-const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
-  // Initialize background logger
+const THINK_KEYWORDS = [
+  /\bthink\s*(hard|deeply|carefully|through)\b/i,
+  /\bthink\b.*\b(about|on|through)\b/i,
+  /\b(deeply|carefully)\s*think\b/i,
+  /\blet('s|s)?\s*think\b/i,
+];
+
+function detectThinkKeyword(text: string): boolean {
+  return THINK_KEYWORDS.some((pattern) => pattern.test(text));
+}
+
+function getTextFromParts(parts: Part[]): string {
+  return parts
+    .filter((p): p is TextPart => p.type === "text")
+    .map((p) => p.text || "")
+    .join(" ");
+}
+
+const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   setLoggerClient(ctx.client);
 
-  /**
-   * Helper to fetch the model being used by a specific session
-   */
-  async function fetchSessionModel(sessionID: string) {
-    if (!sessionID || sessionID === "{id}" || sessionID.startsWith("{")) return undefined;
-
-    try {
-      const resp = (await ctx.client.session.messages({
-        path: { id: sessionID },
-        query: { directory: ctx.directory },
-      })) as any;
-
-      const messages = resp.data || [];
-      const lastMsg = messages[messages.length - 1]?.info;
-
-      if (lastMsg) {
-        if (lastMsg.role === "assistant" && lastMsg.providerID && lastMsg.modelID) {
-          return { providerID: lastMsg.providerID, modelID: lastMsg.modelID };
-        }
-        if (lastMsg.role === "user" && lastMsg.model) {
-          return lastMsg.model as { providerID: string; modelID: string };
-        }
-      }
-    } catch (_error) {
-      // Silent fail
-    }
-    return undefined;
-  }
-
-  // Think mode patterns
-  const THINK_KEYWORDS = [
-    /\bthink\s*(hard|deeply|carefully|through)\b/i,
-    /\bthink\b.*\b(about|on|through)\b/i,
-    /\b(deeply|carefully)\s*think\b/i,
-    /\blet('s|s)?\s*think\b/i,
-  ];
-
-  function detectThinkKeyword(text: string): boolean {
-    return THINK_KEYWORDS.some((pattern) => pattern.test(text));
-  }
-
-  // MCP server configurations
   const MCP_SERVERS: Record<string, McpLocalConfig> = {
-    context7: {
-      type: "local",
-      command: ["npx", "-y", "@upstash/context7-mcp@latest"],
-    },
+    context7: { type: "local", command: ["npx", "-y", "@upstash/context7-mcp@latest"] },
   };
 
-  // Background initialization tasks (non-blocking)
-  checkAstGrepAvailable()
-    .then((status) => {
-      if (!status.available) {
-        log.warn("open-engineer", status.message ?? "ast-grep is unavailable");
-      }
-    })
-    .catch(() => {});
-
-  checkBtcaAvailable()
-    .then((status) => {
-      if (!status.available) {
-        log.warn("open-engineer", status.message ?? "btca is unavailable");
-      }
-    })
-    .catch(() => {});
+  checkAstGrepAvailable().catch((err: unknown) => {
+    log.error("init", "ast-grep check failed", err);
+  });
+  checkBtcaAvailable().catch((err: unknown) => {
+    log.error("init", "btca check failed", err);
+  });
 
   const userConfig = await loadMicodeConfig();
-
-  // Think mode state per session
   const thinkModeState = new Map<string, boolean>();
-
-  // Hooks
-  const autoCompactHook = createAutoCompactHook(ctx);
-  const contextInjectorHook = createContextInjectorHook(ctx);
-  const ledgerLoaderHook = createLedgerLoaderHook(ctx);
-  const sessionRecoveryHook = createSessionRecoveryHook(ctx);
-  const tokenAwareTruncationHook = createTokenAwareTruncationHook(ctx);
-  const contextWindowMonitorHook = createContextWindowMonitorHook(ctx);
-  const commentCheckerHook = createCommentCheckerHook(ctx);
-  const artifactAutoIndexHook = createArtifactAutoIndexHook(ctx);
-  const fileOpsTrackerHook = createFileOpsTrackerHook(ctx);
-  const worktreeEnforcerHook = createWorktreeEnforcerHook(ctx, userConfig?.worktreeMode ?? true);
-  const dcpPrunerHook = createDcpPrunerHook(ctx);
-  const cartographerHook = createCartographerHook(ctx);
-
-  // LSP & Enforcers
-  const lspManager = new LspManager();
-  const enforcerHooks = createEnforcerHooks(ctx, lspManager);
-
-  // Track tool call arguments to bridge before/after hooks
-  const toolCallArgs = new Map<string, any>();
-
-  // Track internal sessions
+  const toolCallArgs = new Map<string, Record<string, unknown>>();
   const internalSessions = new Set<string>();
 
-  // Mindmodel injector hook
-  const mindmodelClassifyFn = async (classifierPrompt: string, parentSessionID?: string): Promise<string> => {
-    let sessionId: string | undefined;
-    try {
-      // Inherit model if parent session ID is provided
-      const model = parentSessionID ? await fetchSessionModel(parentSessionID) : undefined;
+  const lspManager = new LspManager();
+  const ptyManager = new PTYManager();
+  const swarmManager = new SwarmManager(ctx);
 
-      const sessionResult = await ctx.client.session.create({
-        body: { title: "mindmodel-classifier" },
-        query: { directory: ctx.directory },
-      });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const autoCompactHook: any = createAutoCompactHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contextInjectorHook: any = createContextInjectorHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ledgerLoaderHook: any = createLedgerLoaderHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessionRecoveryHook: any = createSessionRecoveryHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tokenAwareTruncationHook: any = createTokenAwareTruncationHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contextWindowMonitorHook: any = createContextWindowMonitorHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commentCheckerHook: any = createCommentCheckerHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const artifactAutoIndexHook: any = createArtifactAutoIndexHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fileOpsTrackerHook: any = createFileOpsTrackerHook(ctx);
+  const worktreeModeHook = createWorktreeModeHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dcpPrunerHook: any = createDcpPrunerHook(ctx, userConfig);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cartographerHook: any = createCartographerHook(ctx);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enforcerHooks: any = createEnforcerHooks(ctx, lspManager);
 
-      if (!sessionResult.data?.id) return "[]";
-      sessionId = sessionResult.data.id;
-      internalSessions.add(sessionId);
+  const mindmodelClassifyFn = (classifierPrompt: string, parentSessionID?: string) =>
+    runInternalPrompt(ctx, {
+      title: "mindmodel-classifier",
+      prompt: classifierPrompt,
+      parentSessionID,
+      internalSessions,
+      fallbackResponse: "[]",
+    });
 
-      const promptResult = await ctx.client.session.prompt({
-        path: { id: sessionId },
-        query: { directory: ctx.directory },
-        body: {
-          model: model as any,
-          parts: [{ type: "text", text: classifierPrompt }] as any,
-        },
-      });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mindmodelInjectorHook: any = createMindmodelInjectorHook(ctx, mindmodelClassifyFn);
 
-      if (!promptResult.data?.parts) return "[]";
-
-      let responseText = "";
-      for (const part of promptResult.data.parts as any[]) {
-        if (part.type === "text") responseText += part.text;
-      }
-      return responseText;
-    } catch (_error) {
-      return "[]";
-    } finally {
-      if (sessionId) {
-        internalSessions.delete(sessionId);
-        await ctx.client.session.delete({ path: { id: sessionId } }).catch(() => {});
-      }
-    }
-  };
-  const mindmodelInjectorHook = createMindmodelInjectorHook(ctx, mindmodelClassifyFn);
-
-  // Constraint reviewer hook
-  const constraintReviewerHook = createConstraintReviewerHook(
-    ctx,
-    async (reviewPrompt: string, parentSessionID?: string) => {
-      let sessionId: string | undefined;
-      try {
-        // Inherit model if parent session ID is provided
-        const model = parentSessionID ? await fetchSessionModel(parentSessionID) : undefined;
-
-        const sessionResult = await ctx.client.session.create({
-          body: { title: "constraint-reviewer" },
-          query: { directory: ctx.directory },
-        });
-
-        if (!sessionResult.data?.id) return '{"status": "PASS", "violations": [], "summary": "Review skipped"}';
-        sessionId = sessionResult.data.id;
-        internalSessions.add(sessionId);
-
-        const promptResult = await ctx.client.session.prompt({
-          path: { id: sessionId },
-          query: { directory: ctx.directory },
-          body: {
-            model: model as any,
-            agent: "mm-constraint-reviewer",
-            parts: [{ type: "text", text: reviewPrompt }] as any,
-          },
-        });
-
-        if (!promptResult.data?.parts) return '{"status": "PASS", "violations": [], "summary": "Empty response"}';
-
-        let responseText = "";
-        for (const part of promptResult.data.parts as any[]) {
-          if (part.type === "text") responseText += part.text;
-        }
-        return responseText;
-      } catch (_error) {
-        return '{"status": "PASS", "violations": [], "summary": "Review failed"}';
-      } finally {
-        if (sessionId) {
-          internalSessions.delete(sessionId);
-          await ctx.client.session.delete({ path: { id: sessionId } }).catch(() => {});
-        }
-      }
-    },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const constraintReviewerHook: any = createConstraintReviewerHook(ctx, (reviewPrompt, parentSessionID) =>
+    runInternalPrompt(ctx, {
+      title: "constraint-reviewer",
+      prompt: reviewPrompt,
+      agent: "mm-constraint-reviewer",
+      parentSessionID,
+      internalSessions,
+      fallbackResponse: '{"status": "PASS"}',
+    }),
   );
 
-  const ptyManager = new PTYManager();
-  const ptyTools = createPtyTools(ptyManager);
-  const swarmManager = new SwarmManager(ctx);
-  const spawn_agent = createSpawnAgentTool(ctx, swarmManager);
-  const wait_for_agents = createWaitForAgentsTool(ctx, swarmManager);
-  const pruningTools = createPruningTools(ctx);
-  const cartographyTools = createCartographyTools(ctx);
-  const gsdTools = createGsdTools(ctx);
-  const lspTools = createLspTools(lspManager);
+  const spawnAgentTool = createSpawnAgentTool(ctx, swarmManager);
+  const waitForAgentsTool = createWaitForAgentsTool(ctx, swarmManager);
+  const wisdomTools = createWisdomTools(ctx);
 
   return {
     tool: {
@@ -249,13 +149,14 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       look_at,
       artifact_search,
       milestone_artifact_search,
-      spawn_agent,
-      wait_for_agents,
-      ...ptyTools,
-      ...pruningTools,
-      ...cartographyTools,
-      ...gsdTools,
-      ...lspTools,
+      spawn_agent: spawnAgentTool,
+      wait_for_agents: waitForAgentsTool,
+      ...createPtyTools(ptyManager),
+      ...createPruningTools(ctx),
+      ...createCartographyTools(ctx),
+      ...createGsdTools(ctx),
+      ...createLspTools(lspManager),
+      ...wisdomTools,
     },
 
     config: async (config: Config) => {
@@ -268,24 +169,11 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         external_directory: "allow",
       };
 
-      // Disable built-in agents to prefer open-engineer specialists
-      config.agent = {
-        ...(config.agent || {}),
-        general: { disable: true } as any,
-        explore: { disable: true } as any,
-      };
-
-      const mergedAgents = mergeAgentConfigs(agents, userConfig);
-
-      // Elevate permissions for all open-engineer agents to allow recursive Task calls
+      const mergedAgents = await mergeAgentConfigs(agents, userConfig);
       for (const agentName in mergedAgents) {
         const agent = mergedAgents[agentName];
-        if (agent) {
-          agent.permission = {
-            ...(agent.permission || {}),
-            task: "allow",
-          } as any;
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (agent) agent.permission = { ...(agent.permission || {}), task: "allow" } as any;
       }
 
       const transformedAgents = applyWorktreeMode(mergedAgents, userConfig?.worktreeMode ?? true);
@@ -304,7 +192,6 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       };
 
       config.mcp = { ...(config.mcp || {}), ...MCP_SERVERS };
-
       config.command = {
         ...(config.command || {}),
         init: {
@@ -317,116 +204,55 @@ const OpenCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
           agent: "ledger-creator",
           template: "Update the continuity ledger. $ARGUMENTS",
         },
-        search: {
-          description: "Search past handoffs",
-          agent: "artifact-searcher",
-          template: "Search for: $ARGUMENTS",
-        },
+        search: { description: "Search past handoffs", agent: "artifact-searcher", template: "Search for: $ARGUMENTS" },
       };
     },
 
-    "chat.message": async (input: any, output: any) => {
-      const text = (output.parts || [])
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text)
-        .join(" ");
-
-      // Intercept worktree triggers
-      if (text.includes("@worktree:off")) {
-        (worktreeEnforcerHook as any).setMode(input.sessionID, "OFF");
-        await ctx.client.tui
-          .showToast({
-            body: {
-              title: "Worktree Enforcer",
-              message: "Worktree mode DISABLED for this session.",
-              variant: "info",
-            },
-          })
-          .catch(() => {});
-      } else if (text.includes("@worktree")) {
-        (worktreeEnforcerHook as any).setMode(input.sessionID, "ON");
-        await ctx.client.tui
-          .showToast({
-            body: {
-              title: "Worktree Enforcer",
-              message: "Worktree mode ENABLED for this session.",
-              variant: "success",
-            },
-          })
-          .catch(() => {});
+    "chat.message": async (input, output) => {
+      if (input.agent) {
+        setSessionAgent(input.sessionID, input.agent);
       }
 
+      if (isBuiltinAgent(input.agent)) {
+        return;
+      }
+
+      const parts = output.parts || [];
+      const text = getTextFromParts(parts);
+
+      await worktreeModeHook.detectWorktreeTrigger(input, { parts });
       thinkModeState.set(input.sessionID, detectThinkKeyword(text));
-      await (constraintReviewerHook as any)["chat.message"](input, output);
+      await constraintReviewerHook["chat.message"]?.(input, output);
     },
 
-    "chat.params": async (input: any, output: any) => {
+    "chat.params": async (input, output) => {
+      if (isBuiltinAgent(input.agent)) {
+        return;
+      }
+
       if (thinkModeState.get(input.sessionID)) {
         output.options = { ...(output.options || {}), thinking: { type: "enabled", budget_tokens: 32000 } };
       }
     },
 
-    "experimental.session.compacting": async (
-      input: { sessionID: string },
-      output: { context: string[]; prompt?: string },
-    ) => {
+    "experimental.session.compacting": async (input, output) => {
+      if (isSessionBuiltin(input.sessionID)) {
+        return;
+      }
+
       const fileOps = getFileOps(input.sessionID);
       const readPaths = Array.from(fileOps.read).sort();
       const modifiedPaths = Array.from(fileOps.modified).sort();
-
-      const fileOpsSection = `
-## File Operations
-### Read
-${readPaths.length > 0 ? readPaths.map((p) => `- \`${p}\``).join("\n") : "- (none)"}
-
-### Modified
-${modifiedPaths.length > 0 ? modifiedPaths.map((p) => `- \`${p}\``).join("\n") : "- (none)"}`;
-
-      output.prompt = `Create a structured summary for continuing this conversation. Use this EXACT format:
-
-# Session Summary
-
-## Goal
-{The core objective being pursued - one sentence describing success criteria}
-
-## Constraints & Preferences
-{Technical requirements, patterns to follow, things to avoid - or "(none)"}
-
-## Progress
-### Done
-- [x] {Completed items with specific details}
-
-### In Progress
-- [ ] {Current work - what's actively being worked on}
-
-### Blocked
-- {Issues preventing progress, if any - or "(none)"}
-
-## Key Decisions
-- **{Decision}**: {Rationale - why this choice was made}
-
-## Next Steps
-1. {Ordered list of what to do next - be specific}
-
-## Critical Context
-- {Data, examples, references, or findings needed to continue work}
-- {Important discoveries or insights from this session}
-${fileOpsSection}
-
-IMPORTANT:
-- Preserve EXACT file paths and function names
-- Focus on information needed to continue seamlessly
-- Be specific about what was done, not vague summaries
-- Include any error messages or issues encountered`;
+      output.prompt = `Create a structured summary for continuing this conversation. Use this EXACT format:\n\n# Session Summary\n\n## Goal\n{Core objective}\n\n## File Operations\n### Read\n${readPaths.map((p) => `- \`${p}\``).join("\n")}\n### Modified\n${modifiedPaths.map((p) => `- \`${p}\``).join("\n")}`;
     },
 
-    "tool.execute.before": async (input: any, output: any) => {
-      // Store arguments for use in 'after' hook
-      if (input.callID && output.args) {
-        toolCallArgs.set(input.callID, output.args);
+    "tool.execute.before": async (input, output) => {
+      if (isSessionBuiltin(input.sessionID)) {
+        return;
       }
 
-      // Mirror subagent tool calls via toasts
+      if (input.callID && output.args) toolCallArgs.set(input.callID, output.args);
+
       if (userConfig?.ui?.showStatusBoard !== false) {
         const parentID = swarmManager.getParentID(input.sessionID);
         if (parentID) {
@@ -435,127 +261,125 @@ IMPORTANT:
             lastTool: input.tool,
             lastToolArgs: output.args,
           });
-
           await ctx.client.tui
             .showToast({
               body: {
-                title: `🛠️ ${input.tool} (Subagent)`,
+                title: `${input.tool} (Subagent)`,
                 message: `Agent is running ${input.tool}...`,
                 variant: "info",
               },
             })
-            .catch(() => {});
+            .catch((err: unknown) => {
+              log.warn(
+                "ui",
+                "Failed to show toast",
+                err instanceof Error ? { error: err.message } : { error: String(err) },
+              );
+            });
         }
       }
 
-      const result = await (worktreeEnforcerHook as any)["tool.execute.before"](input, output);
+      const result = await worktreeModeHook["tool.execute.before"]?.(input, { args: output.args || {} });
       if (result?.error) throw new Error(result.error);
     },
 
-    "tool.execute.after": async (input: any, output: any) => {
+    "tool.execute.after": async (input, output) => {
+      if (isSessionBuiltin(input.sessionID)) {
+        return;
+      }
+
       const args = toolCallArgs.get(input.callID);
 
-      await (tokenAwareTruncationHook as any)["tool.execute.after"](
-        { name: input.tool, sessionID: input.sessionID },
-        output,
-      );
-      await (commentCheckerHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
-      await (contextInjectorHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
-      await (artifactAutoIndexHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
-      await (fileOpsTrackerHook as any)["tool.execute.after"](
-        { tool: input.tool, sessionID: input.sessionID, args },
-        output,
-      );
-      await (cartographerHook as any)["tool.execute.after"]({ tool: input.tool, args }, output);
-      await (enforcerHooks as any)["tool.execute.after"](
-        { sessionID: input.sessionID, tool: input.tool, args },
-        output,
-      );
-      await (constraintReviewerHook as any)["tool.execute.after"](
-        { tool: input.tool, sessionID: input.sessionID, args },
-        output,
-      );
+      await Promise.all([
+        tokenAwareTruncationHook["tool.execute.after"]?.({ name: input.tool, sessionID: input.sessionID }, output),
+        commentCheckerHook["tool.execute.after"]?.({ tool: input.tool, args }, output),
+        contextInjectorHook["tool.execute.after"]?.({ tool: input.tool, args }, output),
+        artifactAutoIndexHook["tool.execute.after"]?.({ tool: input.tool, args }, output),
+        fileOpsTrackerHook["tool.execute.after"]?.({ tool: input.tool, sessionID: input.sessionID, args }, output),
+        cartographerHook["tool.execute.after"]?.({ tool: input.tool, args }, output),
+        enforcerHooks["tool.execute.after"]?.({ sessionID: input.sessionID, tool: input.tool, args }, output),
+        constraintReviewerHook["tool.execute.after"]?.({ tool: input.tool, sessionID: input.sessionID, args }, output),
+      ]);
 
-      // Cleanup stored arguments
-      if (input.callID) {
-        toolCallArgs.delete(input.callID);
+      if (input.callID) toolCallArgs.delete(input.callID);
+    },
+
+    "experimental.chat.messages.transform": async (input, output) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sessionID = (input as any).sessionID || output.messages?.[0]?.info?.sessionID;
+      if (!sessionID || isSessionBuiltin(sessionID)) {
+        return;
+      }
+
+      await Promise.all([
+        dcpPrunerHook["experimental.chat.messages.transform"]?.(input, output),
+        mindmodelInjectorHook["experimental.chat.messages.transform"]?.(input, output),
+      ]);
+    },
+
+    "experimental.chat.system.transform": async (input, output) => {
+      if (input.sessionID && isSessionBuiltin(input.sessionID)) {
+        return;
+      }
+
+      await Promise.all([
+        mindmodelInjectorHook["experimental.chat.system.transform"]?.(input, output),
+        ledgerLoaderHook["experimental.chat.system.transform"]?.(input, output),
+        dcpPrunerHook["experimental.chat.system.transform"]?.(input, output),
+        cartographerHook["experimental.chat.system.transform"]?.(input, output),
+        contextInjectorHook["experimental.chat.system.transform"]?.(input, output),
+        enforcerHooks["experimental.chat.system.transform"]?.(input, output),
+        contextWindowMonitorHook["experimental.chat.system.transform"]?.(input, output),
+      ]);
+
+      if (input.sessionID && worktreeModeHook.getMode(input.sessionID) === "AUTO") {
+        output.system = output.system || [];
+        output.system.push(`[SYSTEM]: Worktree Mode is AUTO. Use native 'question' tool for Sandbox decision.`);
       }
     },
 
-    "experimental.chat.messages.transform": async (input: any, output: any) => {
-      await (dcpPrunerHook as any)["experimental.chat.messages.transform"](input, output);
-      await (mindmodelInjectorHook as any)["experimental.chat.messages.transform"](input, output);
-    },
-
-    "experimental.chat.system.transform": async (input: any, output: any) => {
-      await (mindmodelInjectorHook as any)["experimental.chat.system.transform"](input, output);
-      await (ledgerLoaderHook as any)["experimental.chat.system.transform"]?.(input, output);
-      await (dcpPrunerHook as any)["experimental.chat.system.transform"]?.(input, output);
-      await (cartographerHook as any)["experimental.chat.system.transform"]?.(input, output);
-      await (contextInjectorHook as any)["experimental.chat.system.transform"]?.(input, output);
-      await (enforcerHooks as any)["experimental.chat.system.transform"]?.(input, output);
-      await (contextWindowMonitorHook as any)["experimental.chat.system.transform"]?.(input, output);
-
-      // Worktree Orchestrator System Instruction
-      const wtMode = (worktreeEnforcerHook as any).getMode(input.sessionID);
-      if (wtMode === "AUTO" || wtMode === "PENDING") {
-        output.system.push(
-          `[SYSTEM]: Worktree Mode is set to AUTO. For any task with non-trivial complexity (>1 file or refactor), ` +
-            `you MUST use the native 'question' tool to ask the user: "This task involves significant changes. Enable worktree sandbox?" ` +
-            `with options [{"label": "🛡️ Sandbox", "description": "Safe isolation"}, {"label": "🚀 Direct", "description": "Fast edits"}]. ` +
-            `Do NOT proceed with file modifications until the user answers.`,
-        );
-      }
-
-      output.system = (output.system || []).filter((s: any) => {
-        if (typeof s === "string" && s.startsWith("Instructions from:")) {
-          const path = s.split("\n")[0];
-          return !path.includes("CLAUDE.md") && !path.includes("AGENTS.md");
-        }
-        return true;
-      });
-    },
-
-    event: async ({ event }: any) => {
+    event: async ({ event }) => {
       if (event.type === "session.deleted") {
-        const id = (event.properties as any)?.info?.id;
-        if (id) {
+        const properties = event.properties as { info?: { id?: string } };
+        const id = properties?.info?.id;
+        if (id && typeof id === "string") {
           thinkModeState.delete(id);
           ptyManager.cleanupBySession(id);
           swarmManager.cleanupSession(id);
-          (constraintReviewerHook as any).cleanupSession(id);
+          constraintReviewerHook.cleanupSession?.(id);
+          mindmodelInjectorHook.cleanupSession?.(id);
+          enforcerHooks.cleanupSession?.(id);
+          worktreeModeHook.cleanupSession(id);
+          cleanupAgentSession(id);
         }
       }
 
-      // Track subagent status transitions
       if (event.type === "session.idle") {
-        const id = event.properties?.sessionID;
-        if (id) {
+        const properties = event.properties as { sessionID?: string };
+        const id = properties?.sessionID;
+        if (id && typeof id === "string")
           await swarmManager.updateProgress(id, { status: "idle", lastTool: undefined });
-        }
       }
 
       if (event.type === "message.part.updated") {
-        const sessionID = event.properties?.part?.sessionID;
-        const delta = event.properties?.delta;
-        if (sessionID && delta) {
-          const parentID = swarmManager.getParentID(sessionID);
-          if (parentID) {
-            // Update busy status
-            await swarmManager.updateProgress(sessionID, { status: "busy" });
-          }
+        const properties = event.properties as { part?: { sessionID?: string }; delta?: string };
+        const sessionID = properties?.part?.sessionID;
+        if (sessionID && typeof sessionID === "string" && properties?.delta) {
+          if (swarmManager.getParentID(sessionID)) await swarmManager.updateProgress(sessionID, { status: "busy" });
         }
       }
 
-      await (autoCompactHook as any).event({ event });
-      await (sessionRecoveryHook as any).event({ event });
-      await (tokenAwareTruncationHook as any).event({ event });
-      await (contextWindowMonitorHook as any).event({ event });
-      await (fileOpsTrackerHook as any).event({ event });
-      await (worktreeEnforcerHook as any).event({ event });
+      await Promise.all([
+        autoCompactHook.event?.({ event }),
+        sessionRecoveryHook.event?.({ event }),
+        tokenAwareTruncationHook.event?.({ event }),
+        contextWindowMonitorHook.event?.({ event }),
+        fileOpsTrackerHook.event?.({ event }),
+        worktreeModeHook.event?.({ event }),
+      ]);
       lspManager.handleEvent(event);
     },
-  } as any;
+  };
 };
 
-export default OpenCodeConfigPlugin;
+export default openCodeConfigPlugin;

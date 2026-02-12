@@ -1,30 +1,22 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 
-import { loadMicodeConfig } from "../config-loader";
+import type { MicodeConfig } from "../config-loader";
 import { type Message, PruningManager } from "../utils/context-pruning";
 import { log } from "../utils/logger";
 
-export function createDcpPrunerHook(ctx: PluginInput) {
+export function createDcpPrunerHook(ctx: PluginInput, userConfig: MicodeConfig | null) {
   let pruningManager: PruningManager | null = null;
   let isEnabled = false;
   // Cache history map per session to inject it in chat.params/system.transform
   const historyMaps = new Map<string, string>();
 
-  async function initialize() {
-    const config = await loadMicodeConfig(ctx.directory);
-    if (config?.dcp?.enabled) {
-      isEnabled = true;
-      pruningManager = new PruningManager(ctx.directory, config.dcp.strategies, config.dcp.protectedTools);
-    } else {
-      isEnabled = false;
-      pruningManager = null;
-    }
+  if (userConfig?.dcp?.enabled) {
+    isEnabled = true;
+    pruningManager = new PruningManager(ctx.directory, userConfig.dcp.strategies, userConfig.dcp.protectedTools);
   }
 
   return {
     "experimental.chat.messages.transform": async (input: any, output: { messages: unknown[] }) => {
-      await initialize();
-
       const sessionID = input.sessionID || (output.messages?.[0] as any)?.info?.sessionID;
       if (!isEnabled || !pruningManager || !sessionID) {
         return;

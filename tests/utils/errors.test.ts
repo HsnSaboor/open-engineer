@@ -1,5 +1,5 @@
 // tests/utils/errors.test.ts
-import { describe, expect, it, spyOn } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 
 describe("errors utility", () => {
   describe("extractErrorMessage", () => {
@@ -64,16 +64,26 @@ describe("errors utility", () => {
 
     it("should return undefined on error and log", async () => {
       const { catchAndLog } = await import("../../src/utils/errors");
-      const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+      const { setLoggerClient } = await import("../../src/utils/logger");
+
+      const logErrorMock = mock(() => Promise.resolve());
+      const mockClient: any = { app: { log: logErrorMock } };
+      setLoggerClient(mockClient);
 
       const result = catchAndLog("test-module", () => {
         throw new Error("oops");
       });
 
       expect(result).toBeUndefined();
-      expect(consoleSpy).toHaveBeenCalledWith("[test-module] oops");
-
-      consoleSpy.mockRestore();
+      expect(logErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            service: "test-module",
+            level: "error",
+            message: "oops",
+          }),
+        }),
+      );
     });
 
     it("should handle async functions", async () => {
@@ -86,16 +96,26 @@ describe("errors utility", () => {
 
     it("should handle async errors", async () => {
       const { catchAndLogAsync } = await import("../../src/utils/errors");
-      const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+      const { setLoggerClient } = await import("../../src/utils/logger");
+
+      const logErrorMock = mock(() => Promise.resolve());
+      const mockClient: any = { app: { log: logErrorMock } };
+      setLoggerClient(mockClient);
 
       const result = await catchAndLogAsync("test-module", async () => {
         throw new Error("async oops");
       });
 
       expect(result).toBeUndefined();
-      expect(consoleSpy).toHaveBeenCalledWith("[test-module] async oops");
-
-      consoleSpy.mockRestore();
+      expect(logErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            service: "test-module",
+            level: "error",
+            message: "async oops",
+          }),
+        }),
+      );
     });
   });
 });

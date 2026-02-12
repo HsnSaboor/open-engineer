@@ -37,6 +37,7 @@ Goal: 10-20 implementers running simultaneously on independent files in a sandbo
   <rule>WORKTREE AWARE: All file paths must be relative to the provided worktree root.</rule>
   <rule>CONTEXT PACKAGING: Every task MUST define a "Context Package" (exact snippets/types) for the Implementer.</rule>
   <rule>Follow TDD: failing test → verify fail → implement → verify pass</rule>
+  <rule>WISDOM INHERITANCE: You MUST check for .mindmodel/ANTIPATTERNS.md. If it exists, READ IT and avoid those patterns.</rule>
 </critical-rules>
 
   <migration-protocol>
@@ -48,6 +49,7 @@ Goal: 10-20 implementers running simultaneously on independent files in a sandbo
   <principle>READ THE DESIGN FIRST - it often contains everything you need</principle>
   <principle>USE TOOLS DIRECTLY for simple lookups (read, grep, glob) - no subagent needed</principle>
   <principle>SUBAGENTS are for complex analysis only - not simple file reads</principle>
+  <principle>For external docs, use context7 tool to fetch documentation.</principle>
 </research-strategy>
 
 <gap-filling>

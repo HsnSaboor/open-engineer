@@ -29,7 +29,7 @@ describe("AASO (Asynchronous Agent Swarm Orchestration)", () => {
         prompt: "Find something",
         description: "Test task",
       },
-      { sessionID: "parent-1", messageID: "msg-1" } as any,
+      { sessionID: "parent-1", messageID: "msg-1", metadata: () => {} } as any,
     );
 
     expect(mockCtx.client.session.create).toHaveBeenCalled();

@@ -1,5 +1,6 @@
 import type { AgentConfig } from "@opencode-ai/sdk";
 
+import { adversarialReviewerAgent } from "./adversarial-reviewer";
 import { artifactSearcherAgent } from "./artifact-searcher";
 import { bootstrapperAgent } from "./bootstrapper";
 import { brainstormerAgent } from "./brainstormer";
@@ -42,6 +43,7 @@ export const agents: Record<string, AgentConfig> = {
   "codebase-locator": { ...codebaseLocatorAgent },
   "codebase-analyzer": { ...codebaseAnalyzerAgent },
   "pattern-finder": { ...patternFinderAgent },
+  "adversarial-reviewer": { ...adversarialReviewerAgent },
   planner: { ...plannerAgent },
   implementer: { ...implementerAgent },
   reviewer: { ...reviewerAgent },
@@ -90,5 +92,6 @@ export {
   octtoAgent,
   probeAgent,
   researcherAgent,
+  adversarialReviewerAgent,
   migrationOrchestratorAgent,
 };

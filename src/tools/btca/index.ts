@@ -23,6 +23,17 @@ export async function checkBtcaAvailable(): Promise<{ available: boolean; messag
 const BTCA_TIMEOUT_MS = 300000; // 5 minutes for long clones
 
 async function runBtca(args: string[]): Promise<{ output: string; error?: string }> {
+  const btcaPath = which("btca");
+  if (!btcaPath) {
+    return {
+      output: "",
+      error:
+        "btca CLI not found. Library source code search will not work.\n" +
+        "Install from: https://github.com/davis7dotsh/better-context\n" +
+        "  bun add -g btca",
+    };
+  }
+
   try {
     const proc = spawn(["btca", ...args], {
       stdout: "pipe",
@@ -33,7 +44,7 @@ async function runBtca(args: string[]): Promise<{ output: string; error?: string
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         proc.kill();
-        reject(new Error("btca command timed out after 2 minutes"));
+        reject(new Error("btca command timed out after 5 minutes"));
       }, BTCA_TIMEOUT_MS);
     });
 
@@ -45,18 +56,30 @@ async function runBtca(args: string[]): Promise<{ output: string; error?: string
 
     if (exitCode !== 0) {
       const errorMsg = stderr.trim() || `Exit code ${exitCode}`;
+
+      if (errorMsg.includes("timed out") || errorMsg.includes("timeout")) {
+        return { output: "", error: "btca command timed out. The repository may be large or network slow." };
+      }
+
+      if (errorMsg.includes("not found") || errorMsg.includes("Unknown resource")) {
+        return { output: "", error: errorMsg };
+      }
+
       return { output: "", error: errorMsg };
     }
 
     return { output: stdout.trim() };
   } catch (e) {
     const err = e as Error;
-    if (err.message?.includes("ENOENT")) {
+    if (err.message?.includes("ENOENT") || err.message?.includes("not found")) {
       return {
         output: "",
         error:
           "btca CLI not found. Install from: https://github.com/davis7dotsh/better-context\n" + "  bun add -g btca",
       };
+    }
+    if (err.message?.includes("timed out")) {
+      return { output: "", error: "btca command timed out. Try again with a smaller scope." };
     }
     return { output: "", error: err.message };
   }
