@@ -36,8 +36,7 @@ const IGNORED_DIRS = new Set([
   "out",
   "coverage",
   ".worktrees", // Ignore sandboxes
-  "thoughts", // Ignore session logs (The Trail)
-  ".planning", // Ignore ephemeral plans
+  ".open-engineer", // Ignore all OE metadata
 ]);
 
 export class Cartographer {
@@ -48,7 +47,7 @@ export class Cartographer {
 
   constructor(rootDir: string) {
     this.rootDir = rootDir;
-    this.atlasPath = join(rootDir, "thoughts", "shared", "atlas.json");
+    this.atlasPath = join(rootDir, ".open-engineer", "thoughts", "shared", "atlas.json");
     this.atlas = { root: rootDir, lastUpdated: 0, directories: {}, symbolMap: {} };
     this.dirty = new Set();
   }

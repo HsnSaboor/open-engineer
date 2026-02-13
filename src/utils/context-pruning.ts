@@ -63,7 +63,7 @@ export class PruningManager {
   private async loadExtractions(sessionId: string) {
     if (this.extractions.has(sessionId)) return;
     try {
-      const path = join(this.rootDir, "thoughts", sessionId, "pruning.json");
+      const path = join(this.rootDir, ".open-engineer", "thoughts", sessionId, "pruning.json");
       if (existsSync(path)) {
         const content = await readFile(path, "utf-8");
         const data = JSON.parse(content);
@@ -81,7 +81,7 @@ export class PruningManager {
     const map = this.extractions.get(sessionId);
     if (!map) return;
     try {
-      const dir = join(this.rootDir, "thoughts", sessionId);
+      const dir = join(this.rootDir, ".open-engineer", "thoughts", sessionId);
       await mkdir(dir, { recursive: true });
       const path = join(dir, "pruning.json");
       await writeFile(path, JSON.stringify(Object.fromEntries(map), null, 2));
@@ -285,7 +285,7 @@ export class PruningManager {
     }
 
     try {
-      const dir = join(this.rootDir, "thoughts", sessionId);
+      const dir = join(this.rootDir, ".open-engineer", "thoughts", sessionId);
       await mkdir(dir, { recursive: true });
       await writeFile(join(dir, "id-map.json"), JSON.stringify(Object.fromEntries(map)));
     } catch (e) {
@@ -295,7 +295,7 @@ export class PruningManager {
 
   public async getToolIdFromMap(sessionId: string, id: number): Promise<string | null> {
     try {
-      const path = join(this.rootDir, "thoughts", sessionId, "id-map.json");
+      const path = join(this.rootDir, ".open-engineer", "thoughts", sessionId, "id-map.json");
       if (existsSync(path)) {
         const content = await readFile(path, "utf-8");
         const data = JSON.parse(content);

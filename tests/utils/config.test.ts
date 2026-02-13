@@ -66,7 +66,7 @@ describe("config utility", () => {
   describe("config.paths", () => {
     it("should have ledgerDir", async () => {
       const { config } = await import("../../src/utils/config");
-      expect(config.paths.ledgerDir).toBe("thoughts/ledgers");
+      expect(config.paths.ledgerDir).toBe(".open-engineer/thoughts/ledgers");
     });
 
     it("should have ledgerPrefix", async () => {
@@ -86,13 +86,13 @@ describe("config utility", () => {
 
     it("should have planPattern regex", async () => {
       const { config } = await import("../../src/utils/config");
-      expect(config.paths.planPattern.test("thoughts/shared/plans/2026-01-01-test.md")).toBe(true);
+      expect(config.paths.planPattern.test(".open-engineer/thoughts/shared/plans/2026-01-01-test.md")).toBe(true);
       expect(config.paths.planPattern.test("other/path.md")).toBe(false);
     });
 
     it("should have ledgerPattern regex", async () => {
       const { config } = await import("../../src/utils/config");
-      expect(config.paths.ledgerPattern.test("thoughts/ledgers/CONTINUITY_abc123.md")).toBe(true);
+      expect(config.paths.ledgerPattern.test(".open-engineer/thoughts/ledgers/CONTINUITY_abc123.md")).toBe(true);
       expect(config.paths.ledgerPattern.test("other/path.md")).toBe(false);
     });
   });

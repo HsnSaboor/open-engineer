@@ -88,7 +88,7 @@ For every task, explicitly list:
 </context-package>
 </micro-task-design>
 
-<output-format path="thoughts/shared/plans/YYYY-MM-DD-{topic}.md">
+<output-format path=".open-engineer/thoughts/shared/plans/YYYY-MM-DD-{topic}.md">
 <template>
 # [Feature Name] Implementation Plan (Worktree: {path})
 

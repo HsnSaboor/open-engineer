@@ -11,7 +11,7 @@ export function createGsdTools(ctx: PluginInput) {
   return {
     gsd_init: tool({
       description:
-        "Initialize the GSD Spec Stack (PROJECT.md, REQUIREMENTS.md, ROADMAP.md). Use this if they are missing.",
+        "Initialize the GSD Spec Stack (.open-engineer/PROJECT.md, .open-engineer/REQUIREMENTS.md, .open-engineer/ROADMAP.md). Use this if they are missing.",
       args: {},
       execute: async () => {
         await specManager.ensureSpecDirs();

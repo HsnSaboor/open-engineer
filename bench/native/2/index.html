@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenFlow OS | Productivity Reimagined</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        :root {
+            --bg-base: #09090b;
+            --bg-surface: #121215;
+            --border-subtle: #27272a;
+            --accent: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: #fafafa;
+            overflow: hidden;
+        }
+
+        .glass {
+            background: rgba(18, 18, 21, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .kanban-column {
+            min-height: calc(100vh - 200px);
+        }
+
+        .drag-over {
+            background: rgba(59, 130, 246, 0.05);
+            outline: 2px dashed var(--accent);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 10px;
+        }
+
+        #pomodoro-svg circle {
+            transition: stroke-dashoffset 1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .cmd-palette-enter {
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: scale(0.95) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .note-preview h1 { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-subtle); }
+        .note-preview h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1rem; }
+        .note-preview ul { list-style-type: disc; margin-left: 1.5rem; }
+        .note-preview code { font-family: 'JetBrains Mono'; background: #27272a; padding: 0.2rem 0.4rem; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <nav class="h-14 border-b border-[#27272a] flex items-center justify-between px-6 bg-[#09090b]/50 backdrop-blur-md z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <i data-lucide="zap" class="w-5 h-5 text-white"></i>
+            </div>
+            <span class="font-bold text-lg tracking-tight">ZenFlow <span class="text-blue-500 font-medium text-sm">OS</span></span>
+        </div>
+        
+        <div class="flex items-center gap-4 text-zinc-400">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#27272a] bg-[#121215] text-xs font-medium">
+                <span class="text-zinc-500">⌘ K</span>
+                <span>to search</span>
+            </div>
+            <button id="export-btn" class="p-2 hover:bg-zinc-800 rounded-lg transition-colors" title="Export Workspace">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </button>
+            <button id="theme-toggle" class="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
+                <i data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-[#27272a] bg-[#09090b] flex flex-col p-4 gap-2">
+            <button data-module="tasks" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-800/50 text-white font-medium transition-all">
+                <i data-lucide="layout-grid" class="w-4 h-4 text-blue-500"></i> Task Manager
+            </button>
+            <button data-module="timer" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-400 hover:bg-zinc-800/50 hover:text-white transition-all">
+                <i data-lucide="timer" class="w-4 h-4"></i> Pomodoro
+            </button>
+            <button data-module="notes" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-400 hover:bg-zinc-800/50 hover:text-white transition-all">
+                <i data-lucide="file-text" class="w-4 h-4"></i> Smart Notes
+            </button>
+            
+            <div class="mt-auto border-t border-zinc-800 pt-4 flex flex-col gap-4">
+                <div id="health-monitor" class="text-[10px] uppercase tracking-widest text-zinc-500 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span>System Status</span>
+                        <span class="text-green-500 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            Stable
+                        </span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><span>CPU Load</span> <span id="cpu-usage">12%</span></div>
+                        <div class="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                            <div id="cpu-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 12%"></div>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between"><span>Mem Usage</span> <span id="mem-usage">244MB</span></div>
+                        <div class="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                            <div id="mem-bar" class="bg-purple-500 h-full transition-all duration-500" style="width: 45%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="clock" class="text-2xl font-mono text-zinc-300 font-medium tabular-nums">00:00:00</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="app-viewport" class="flex-1 overflow-auto bg-[#09090b] relative">
+            
+            <!-- Tasks Module -->
+            <section id="mod-tasks" class="p-8 h-full">
+                <div class="flex justify-between items-end mb-8">
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight">Workspace</h1>
+                        <p class="text-zinc-500 text-sm">Organize your flow with Kanban methodology.</p>
+                    </div>
+                    <button id="add-task-btn" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add Task
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6 h-full pb-20">
+                    <!-- To Do -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between px-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                                <span class="font-semibold text-sm uppercase tracking-wider text-zinc-400">To Do</span>
+                            </div>
+                            <span class="text-xs text-zinc-600 font-mono" id="count-todo">0</span>
+                        </div>
+                        <div id="col-todo" data-status="todo" class="kanban-column flex flex-col gap-3 rounded-xl custom-scrollbar overflow-y-auto"></div>
+                    </div>
+
+                    <!-- In Progress -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between px-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                <span class="font-semibold text-sm uppercase tracking-wider text-zinc-400">Doing</span>
+                            </div>
+                            <span class="text-xs text-zinc-600 font-mono" id="count-doing">0</span>
+                        </div>
+                        <div id="col-doing" data-status="doing" class="kanban-column flex flex-col gap-3 rounded-xl custom-scrollbar overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Done -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between px-1">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                <span class="font-semibold text-sm uppercase tracking-wider text-zinc-400">Done</span>
+                            </div>
+                            <span class="text-xs text-zinc-600 font-mono" id="count-done">0</span>
+                        </div>
+                        <div id="col-done" data-status="done" class="kanban-column flex flex-col gap-3 rounded-xl custom-scrollbar overflow-y-auto"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Timer Module -->
+            <section id="mod-timer" class="hidden p-8 h-full flex flex-col items-center justify-center">
+                <div class="text-center mb-12">
+                    <h1 class="text-3xl font-bold mb-2">Focus Mode</h1>
+                    <p class="text-zinc-500">Deep work session in progress.</p>
+                </div>
+                
+                <div class="relative w-80 h-80 flex items-center justify-center">
+                    <svg id="pomodoro-svg" class="w-full h-full">
+                        <circle cx="160" cy="160" r="150" stroke="#27272a" stroke-width="8" fill="none" class="opacity-50" />
+                        <circle id="pomodoro-progress" cx="160" cy="160" r="150" stroke="#3b82f6" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="942" stroke-dashoffset="0" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span id="timer-display" class="text-6xl font-mono font-bold tracking-tighter">25:00</span>
+                        <span id="timer-label" class="text-xs uppercase tracking-widest text-zinc-500 mt-2">Work Session</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 mt-12">
+                    <button id="timer-toggle" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform">
+                        <i data-lucide="play" class="w-6 h-6 ml-1" id="timer-icon"></i>
+                    </button>
+                    <button id="timer-reset" class="w-14 h-14 border border-zinc-800 rounded-full flex items-center justify-center hover:bg-zinc-800 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-6 h-6 text-zinc-400"></i>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 mt-8">
+                    <button data-time="25" class="timer-preset px-4 py-2 rounded-lg bg-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors">Pomodoro</button>
+                    <button data-time="5" class="timer-preset px-4 py-2 rounded-lg border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white transition-colors">Short Break</button>
+                    <button data-time="15" class="timer-preset px-4 py-2 rounded-lg border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white transition-colors">Long Break</button>
+                </div>
+            </section>
+
+            <!-- Notes Module -->
+            <section id="mod-notes" class="hidden p-8 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight">Smart Notes</h1>
+                        <p class="text-zinc-500 text-sm italic">Markdown supported. Auto-saves to local storage.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="note-view-edit" class="px-3 py-1.5 rounded-md bg-blue-600 text-xs font-medium text-white">Editor</button>
+                        <button id="note-view-preview" class="px-3 py-1.5 rounded-md border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-white transition-colors">Preview</button>
+                    </div>
+                </div>
+
+                <div class="flex-1 relative flex gap-4 overflow-hidden">
+                    <textarea id="notes-editor" class="flex-1 bg-[#121215] border border-zinc-800 rounded-xl p-6 font-mono text-zinc-300 focus:outline-none focus:border-blue-500/50 transition-colors resize-none custom-scrollbar" placeholder="Start typing... # Header, * list, etc."></textarea>
+                    <div id="notes-preview" class="hidden flex-1 bg-[#121215] border border-zinc-800 rounded-xl p-6 overflow-y-auto custom-scrollbar note-preview text-zinc-300 prose-invert"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Command Palette Overlay -->
+    <div id="cmd-palette" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-24">
+        <div class="w-full max-w-xl glass rounded-2xl shadow-2xl overflow-hidden cmd-palette-enter">
+            <div class="p-4 border-b border-zinc-800 flex items-center gap-4">
+                <i data-lucide="search" class="w-5 h-5 text-zinc-500"></i>
+                <input type="text" id="cmd-input" class="bg-transparent border-none outline-none text-lg text-white w-full" placeholder="Search commands..." autofocus>
+            </div>
+            <div id="cmd-results" class="p-2 max-h-96 overflow-y-auto custom-scrollbar">
+                <!-- Dynamic results -->
+            </div>
+            <div class="p-3 border-t border-zinc-800 bg-zinc-900/50 flex items-center justify-between text-[10px] uppercase tracking-widest text-zinc-500">
+                <div class="flex gap-4">
+                    <span><kbd class="bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700 mr-1 text-zinc-300">↑↓</kbd> Navigate</span>
+                    <span><kbd class="bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700 mr-1 text-zinc-300">↵</kbd> Select</span>
+                </div>
+                <span>ESC to Close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="task-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="w-full max-w-md glass rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4">New Task</h2>
+            <input type="text" id="task-title-input" class="w-full bg-[#121215] border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 mb-4" placeholder="Task title...">
+            <select id="task-priority-input" class="w-full bg-[#121215] border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 mb-6">
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+            </select>
+            <div class="flex gap-3">
+                <button id="cancel-task-btn" class="flex-1 py-2 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                <button id="save-task-btn" class="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ZENFLOW OS - CORE ENGINE
+         * ES6+ Class Based Architecture
+         */
+        class ZenFlow {
+            #state = {
+                activeModule: 'tasks',
+                tasks: [],
+                notes: '',
+                isDarkMode: true,
+                timer: {
+                    timeLeft: 1500,
+                    isRunning: false,
+                    currentPreset: 25,
+                    total: 1500
+                }
+            };
+
+            #audioCtx = null;
+            #timerInterval = null;
+
+            constructor() {
+                this.init();
+            }
+
+            async init() {
+                this.loadState();
+                lucide.createIcons();
+                this.setupEventListeners();
+                this.startHealthMonitor();
+                this.render();
+                this.setupDragAndDrop();
+            }
+
+            loadState() {
+                const saved = localStorage.getItem('zenflow_state');
+                if (saved) {
+                    this.#state = { ...this.#state, ...JSON.parse(saved) };
+                    // Reset timer running state on load
+                    this.#state.timer.isRunning = false;
+                }
+            }
+
+            saveState() {
+                localStorage.setItem('zenflow_state', JSON.stringify(this.#state));
+            }
+
+            setupEventListeners() {
+                // Navigation
+                document.querySelectorAll('.nav-item').forEach(btn => {
+                    btn.addEventListener('click', () => this.switchModule(btn.dataset.module));
+                });
+
+                // Command Palette
+                window.addEventListener('keydown', (e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                        e.preventDefault();
+                        this.toggleCommandPalette();
+                    }
+                    if (e.key === 'Escape') {
+                        document.getElementById('cmd-palette').classList.add('hidden');
+                        document.getElementById('task-modal').classList.add('hidden');
+                    }
+                });
+
+                document.getElementById('cmd-input').addEventListener('input', (e) => this.handleCommandSearch(e.target.value));
+
+                // Tasks
+                document.getElementById('add-task-btn').addEventListener('click', () => {
+                    document.getElementById('task-modal').classList.remove('hidden');
+                    document.getElementById('task-title-input').focus();
+                });
+                document.getElementById('cancel-task-btn').addEventListener('click', () => document.getElementById('task-modal').classList.add('hidden'));
+                document.getElementById('save-task-btn').addEventListener('click', () => this.addTask());
+
+                // Timer
+                document.getElementById('timer-toggle').addEventListener('click', () => this.toggleTimer());
+                document.getElementById('timer-reset').addEventListener('click', () => this.resetTimer());
+                document.querySelectorAll('.timer-preset').forEach(btn => {
+                    btn.addEventListener('click', () => this.setTimerPreset(parseInt(btn.dataset.time)));
+                });
+
+                // Notes
+                document.getElementById('notes-editor').addEventListener('input', (e) => {
+                    this.#state.notes = e.target.value;
+                    this.saveState();
+                });
+                document.getElementById('note-view-edit').addEventListener('click', () => this.toggleNoteView(false));
+                document.getElementById('note-view-preview').addEventListener('click', () => this.toggleNoteView(true));
+
+                // Utilities
+                document.getElementById('export-btn').addEventListener('click', () => this.exportWorkspace());
+                document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+            }
+
+            // --- NAVIGATION ---
+            switchModule(moduleId) {
+                this.#state.activeModule = moduleId;
+                document.querySelectorAll('section[id^="mod-"]').forEach(sec => sec.classList.add('hidden'));
+                document.getElementById(`mod-${moduleId}`).classList.remove('hidden');
+                
+                document.querySelectorAll('.nav-item').forEach(btn => {
+                    const isActive = btn.dataset.module === moduleId;
+                    btn.classList.toggle('bg-zinc-800/50', isActive);
+                    btn.classList.toggle('text-white', isActive);
+                    btn.classList.toggle('text-zinc-400', !isActive);
+                    const icon = btn.querySelector('i');
+                    if(icon) icon.classList.toggle('text-blue-500', isActive);
+                });
+                this.render();
+            }
+
+            // --- TASK MANAGER ---
+            addTask() {
+                const titleInput = document.getElementById('task-title-input');
+                const priorityInput = document.getElementById('task-priority-input');
+                if (!titleInput.value) return;
+
+                const task = {
+                    id: crypto.randomUUID(),
+                    title: titleInput.value,
+                    priority: priorityInput.value,
+                    status: 'todo',
+                    createdAt: new Date().toISOString()
+                };
+
+                this.#state.tasks.push(task);
+                this.saveState();
+                this.renderTasks();
+                
+                titleInput.value = '';
+                document.getElementById('task-modal').classList.add('hidden');
+            }
+
+            renderTasks() {
+                const columns = {
+                    todo: document.getElementById('col-todo'),
+                    doing: document.getElementById('col-doing'),
+                    done: document.getElementById('col-done')
+                };
+
+                // Clear
+                Object.values(columns).forEach(col => col.innerHTML = '');
+
+                const counts = { todo: 0, doing: 0, done: 0 };
+
+                this.#state.tasks.forEach(task => {
+                    counts[task.status]++;
+                    const card = document.createElement('div');
+                    card.className = 'bg-[#121215] border border-[#27272a] p-4 rounded-xl shadow-sm cursor-grab active:cursor-grabbing hover:border-zinc-700 transition-colors group';
+                    card.draggable = true;
+                    card.dataset.id = task.id;
+                    
+                    const prioColor = task.priority === 'high' ? 'text-red-400' : task.priority === 'medium' ? 'text-orange-400' : 'text-zinc-500';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[10px] uppercase font-bold tracking-widest ${prioColor}">${task.priority}</span>
+                            <button class="delete-task opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all" data-id="${task.id}">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                        <p class="text-sm font-medium text-zinc-200">${task.title}</p>
+                    `;
+
+                    card.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', task.id);
+                        card.classList.add('opacity-50');
+                    });
+
+                    card.addEventListener('dragend', () => card.classList.remove('opacity-50'));
+                    
+                    card.querySelector('.delete-task').onclick = (e) => {
+                        e.stopPropagation();
+                        this.deleteTask(task.id);
+                    };
+
+                    columns[task.status].appendChild(card);
+                });
+
+                // Update counters
+                document.getElementById('count-todo').innerText = counts.todo;
+                document.getElementById('count-doing').innerText = counts.doing;
+                document.getElementById('count-done').innerText = counts.done;
+
+                lucide.createIcons();
+            }
+
+            deleteTask(id) {
+                this.#state.tasks = this.#state.tasks.filter(t => t.id !== id);
+                this.saveState();
+                this.renderTasks();
+            }
+
+            setupDragAndDrop() {
+                document.querySelectorAll('.kanban-column').forEach(col => {
+                    col.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        col.classList.add('drag-over');
+                    });
+
+                    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+
+                    col.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        col.classList.remove('drag-over');
+                        const id = e.dataTransfer.getData('text/plain');
+                        const status = col.dataset.status;
+                        
+                        const task = this.#state.tasks.find(t => t.id === id);
+                        if (task) {
+                            task.status = status;
+                            this.saveState();
+                            this.renderTasks();
+                        }
+                    });
+                });
+            }
+
+            // --- POMODORO TIMER ---
+            setTimerPreset(minutes) {
+                this.stopTimer();
+                this.#state.timer.currentPreset = minutes;
+                this.#state.timer.total = minutes * 60;
+                this.#state.timer.timeLeft = minutes * 60;
+                this.updateTimerDisplay();
+                
+                document.querySelectorAll('.timer-preset').forEach(btn => {
+                    const isActive = parseInt(btn.dataset.time) === minutes;
+                    btn.classList.toggle('bg-zinc-800', isActive);
+                    btn.classList.toggle('border-zinc-800', !isActive);
+                    btn.classList.toggle('text-white', isActive);
+                    btn.classList.toggle('text-zinc-400', !isActive);
+                });
+            }
+
+            toggleTimer() {
+                if (this.#state.timer.isRunning) {
+                    this.stopTimer();
+                } else {
+                    this.startTimer();
+                }
+            }
+
+            startTimer() {
+                if (this.#state.timer.isRunning) return;
+                this.#state.timer.isRunning = true;
+                this.updateTimerUI();
+
+                this.#timerInterval = setInterval(() => {
+                    this.#state.timer.timeLeft--;
+                    this.updateTimerDisplay();
+
+                    if (this.#state.timer.timeLeft <= 0) {
+                        this.stopTimer();
+                        this.playAlert();
+                        alert("Session complete! Time to recharge.");
+                        this.resetTimer();
+                    }
+                }, 1000);
+            }
+
+            stopTimer() {
+                this.#state.timer.isRunning = false;
+                clearInterval(this.#timerInterval);
+                this.updateTimerUI();
+            }
+
+            resetTimer() {
+                this.stopTimer();
+                this.#state.timer.timeLeft = this.#state.timer.currentPreset * 60;
+                this.updateTimerDisplay();
+            }
+
+            updateTimerDisplay() {
+                const mins = Math.floor(this.#state.timer.timeLeft / 60);
+                const secs = this.#state.timer.timeLeft % 60;
+                const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                document.getElementById('timer-display').innerText = timeStr;
+                
+                // Progress circle
+                const progress = document.getElementById('pomodoro-progress');
+                const offset = 942 - (942 * (this.#state.timer.timeLeft / (this.#state.timer.currentPreset * 60)));
+                progress.style.strokeDashoffset = offset;
+            }
+
+            updateTimerUI() {
+                const icon = document.getElementById('timer-icon');
+                const btn = document.getElementById('timer-toggle');
+                if (this.#state.timer.isRunning) {
+                    icon.setAttribute('data-lucide', 'pause');
+                    icon.classList.remove('ml-1');
+                } else {
+                    icon.setAttribute('data-lucide', 'play');
+                    icon.classList.add('ml-1');
+                }
+                lucide.createIcons();
+            }
+
+            playAlert() {
+                if (!this.#audioCtx) this.#audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = this.#audioCtx.createOscillator();
+                const gain = this.#audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.#audioCtx.currentTime); // A5
+                osc.frequency.exponentialRampToValueAtTime(440, this.#audioCtx.currentTime + 0.5);
+                
+                gain.gain.setValueAtTime(0.1, this.#audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.#audioCtx.currentTime + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(this.#audioCtx.destination);
+                
+                osc.start();
+                osc.stop(this.#audioCtx.currentTime + 0.5);
+            }
+
+            // --- SMART NOTES ---
+            toggleNoteView(isPreview) {
+                const editor = document.getElementById('notes-editor');
+                const preview = document.getElementById('notes-preview');
+                const btnEdit = document.getElementById('note-view-edit');
+                const btnPrev = document.getElementById('note-view-preview');
+
+                if (isPreview) {
+                    preview.innerHTML = this.parseMarkdown(this.#state.notes);
+                    editor.classList.add('hidden');
+                    preview.classList.remove('hidden');
+                    btnPrev.className = 'px-3 py-1.5 rounded-md bg-blue-600 text-xs font-medium text-white';
+                    btnEdit.className = 'px-3 py-1.5 rounded-md border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-white transition-colors';
+                } else {
+                    editor.classList.remove('hidden');
+                    preview.classList.add('hidden');
+                    btnEdit.className = 'px-3 py-1.5 rounded-md bg-blue-600 text-xs font-medium text-white';
+                    btnPrev.className = 'px-3 py-1.5 rounded-md border border-zinc-800 text-xs font-medium text-zinc-400 hover:text-white transition-colors';
+                }
+            }
+
+            parseMarkdown(text) {
+                if (!text) return '<p class="text-zinc-500 italic">No notes yet...</p>';
+                return text
+                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                    .replace(/^\* (.*$)/gm, '<li>$1</li>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+            }
+
+            // --- COMMAND PALETTE ---
+            toggleCommandPalette() {
+                const cp = document.getElementById('cmd-palette');
+                const input = document.getElementById('cmd-input');
+                cp.classList.toggle('hidden');
+                if (!cp.classList.contains('hidden')) {
+                    input.value = '';
+                    input.focus();
+                    this.handleCommandSearch('');
+                }
+            }
+
+            handleCommandSearch(query) {
+                const results = document.getElementById('cmd-results');
+                const commands = [
+                    { name: 'Switch to Tasks', icon: 'layout-grid', action: () => this.switchModule('tasks') },
+                    { name: 'Start Pomodoro', icon: 'play', action: () => { this.switchModule('timer'); this.startTimer(); } },
+                    { name: 'Open Notes', icon: 'file-text', action: () => this.switchModule('notes') },
+                    { name: 'Toggle Dark Mode', icon: 'moon', action: () => this.toggleTheme() },
+                    { name: 'Export Data', icon: 'download', action: () => this.exportWorkspace() },
+                    { name: 'New Task', icon: 'plus', action: () => { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-title-input').focus(); } }
+                ];
+
+                const filtered = commands.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+                
+                results.innerHTML = filtered.map((c, i) => `
+                    <div class="cmd-item flex items-center justify-between px-4 py-3 rounded-xl hover:bg-zinc-800/50 cursor-pointer group transition-all" data-index="${i}">
+                        <div class="flex items-center gap-4">
+                            <i data-lucide="${c.icon}" class="w-4 h-4 text-zinc-500 group-hover:text-blue-500"></i>
+                            <span class="text-sm font-medium text-zinc-300 group-hover:text-white">${c.name}</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-700 opacity-0 group-hover:opacity-100"></i>
+                    </div>
+                `).join('');
+
+                results.querySelectorAll('.cmd-item').forEach((item, i) => {
+                    item.onclick = () => {
+                        filtered[i].action();
+                        document.getElementById('cmd-palette').classList.add('hidden');
+                    };
+                });
+
+                lucide.createIcons();
+            }
+
+            // --- UTILITIES ---
+            startHealthMonitor() {
+                const update = () => {
+                    const now = new Date();
+                    document.getElementById('clock').innerText = now.toTimeString().split(' ')[0];
+                    
+                    // Mock data
+                    const cpu = Math.floor(Math.random() * 15) + 5;
+                    const mem = Math.floor(Math.random() * 50) + 200;
+                    
+                    document.getElementById('cpu-usage').innerText = `${cpu}%`;
+                    document.getElementById('cpu-bar').style.width = `${cpu}%`;
+                    document.getElementById('mem-usage').innerText = `${mem}MB`;
+                    document.getElementById('mem-bar').style.width = `${(mem/1000) * 100}%`;
+                };
+                setInterval(update, 1000);
+                update();
+            }
+
+            toggleTheme() {
+                this.#state.isDarkMode = !this.#state.isDarkMode;
+                document.documentElement.classList.toggle('dark');
+                const icon = document.getElementById('theme-toggle').querySelector('i');
+                icon.setAttribute('data-lucide', this.#state.isDarkMode ? 'moon' : 'sun');
+                lucide.createIcons();
+                this.saveState();
+            }
+
+            exportWorkspace() {
+                const data = JSON.stringify(this.#state, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `zenflow_export_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            render() {
+                this.renderTasks();
+                this.updateTimerDisplay();
+                document.getElementById('notes-editor').value = this.#state.notes;
+            }
+        }
+
+        // Initialize OS
+        const app = new ZenFlow();
+    </script>
+</body>
+</html>

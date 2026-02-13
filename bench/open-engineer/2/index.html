@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenFlow OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #09090b;
+            color: #fafafa;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .glass {
+            background: rgba(9, 9, 11, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .desktop-icon {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .desktop-icon:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .command-palette-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative select-none">
+    
+    <!-- Desktop Area -->
+    <main id="desktop" class="absolute inset-0 p-4 flex flex-wrap content-start gap-4">
+        <!-- Icons will be injected here -->
+    </main>
+
+    <!-- App Grid Overlay (Hidden by default) -->
+    <div id="app-grid" class="fixed inset-0 z-50 glass hidden flex items-center justify-center">
+        <div class="grid grid-cols-4 md:grid-cols-6 gap-8 p-12 max-w-4xl">
+            <!-- App shortcuts will be injected here -->
+        </div>
+    </div>
+
+    <!-- Command Palette Overlay -->
+    <div id="command-palette" class="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm hidden flex items-start justify-center pt-[15vh]">
+        <div class="w-full max-w-xl glass rounded-xl shadow-2xl overflow-hidden animate-fade-in border border-white/20">
+            <div class="flex items-center p-4 border-b border-white/10">
+                <i data-lucide="search" class="w-5 h-5 text-white/40 mr-3"></i>
+                <input id="palette-input" type="text" placeholder="Type a command or search..." class="flex-1 bg-transparent border-none outline-none text-white text-lg placeholder:text-white/20">
+                <kbd class="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-white/40 ml-2">ESC</kbd>
+            </div>
+            <div id="palette-results" class="max-h-[300px] overflow-y-auto p-2">
+                <!-- Results injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Taskbar -->
+    <footer id="taskbar" class="fixed bottom-0 left-0 right-0 h-14 glass flex items-center px-4 z-40">
+        <div class="flex items-center gap-2">
+            <button id="start-menu-btn" class="p-2 hover:bg-white/10 rounded-md transition-colors">
+                <i data-lucide="layout-grid" class="w-5 h-5 text-white/80"></i>
+            </button>
+        </div>
+        <div class="flex-1 flex justify-center items-center gap-2" id="running-apps">
+            <!-- Active app icons -->
+        </div>
+        <div class="flex items-center gap-4 text-xs font-medium text-white/60">
+            <div id="system-status" class="hidden md:flex items-center gap-3 border-r border-white/10 pr-4">
+                <span id="cpu-load">CPU: 0%</span>
+                <span id="ram-usage">RAM: 0.0GB</span>
+            </div>
+            <div id="clock">00:00</div>
+        </div>
+    </footer>
+
+    <!-- ZenFlowState -->
+    <script>
+        class StorageManager {
+            static STORAGE_KEY = 'zenflow_os_state';
+            static save(state) {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
+                    console.log('State Synced');
+                } catch (e) { console.error('Save failed:', e); }
+            }
+            static load() {
+                const saved = localStorage.getItem(this.STORAGE_KEY);
+                return saved ? JSON.parse(saved) : this.getDefaultState();
+            }
+            static getDefaultState() {
+                return {
+                    apps: [],
+                    tasks: [
+                        { id: 1, text: 'Design UI', status: 'todo' },
+                        { id: 2, text: 'Implement Logic', status: 'in-progress' },
+                        { id: 3, text: 'Test Apps', status: 'done' }
+                    ],
+                    notes: '# Welcome\n* This is your scratchpad\n* Auto-saves on every keystroke',
+                    pomodoro: { time: 1500, running: false, sessions: 0 },
+                    windows: [],
+                    settings: { theme: 'dark' }
+                };
+            }
+        }
+
+        class ZenFlowState {
+            constructor() {
+                this.data = this.createProxy(StorageManager.load());
+            }
+            createProxy(data) {
+                const self = this;
+                return new Proxy(data, {
+                    get(target, prop) {
+                        const val = target[prop];
+                        if (val && typeof val === 'object') return self.createProxy(val);
+                        return val;
+                    },
+                    set(target, prop, value) {
+                        target[prop] = value;
+                        StorageManager.save(window.state.data);
+                        window.dispatchEvent(new CustomEvent('zenflow:state-changed', { detail: window.state.data }));
+                        return true;
+                    }
+                });
+            }
+        }
+    </script>
+
+    <!-- WindowManager -->
+    <script>
+        class Window {
+            constructor(id, title, content, options = {}) {
+                this.id = id;
+                this.title = title;
+                this.content = content;
+                this.options = { width: 400, height: 300, x: 100, y: 100, ...options };
+                this.element = this.create();
+                this.setupDragging();
+            }
+            create() {
+                const div = document.createElement('div');
+                div.id = `win-${this.id}`;
+                div.className = 'absolute glass rounded-lg shadow-2xl flex flex-col overflow-hidden animate-fade-in';
+                Object.assign(div.style, {
+                    width: `${this.options.width}px`, height: `${this.options.height}px`,
+                    left: `${this.options.x}px`, top: `${this.options.y}px`, zIndex: '10'
+                });
+                div.innerHTML = `
+                    <div class="window-header h-10 flex items-center justify-between px-4 bg-white/5 cursor-move">
+                        <span class="text-sm font-medium text-white/80">${this.title}</span>
+                        <button class="close-btn p-1 hover:bg-red-500/20 rounded-md transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-white/60"></i>
+                        </button>
+                    </div>
+                    <div class="window-content flex-1 p-4 overflow-auto bg-black/20">${this.content}</div>
+                `;
+                div.querySelector('.close-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    window.wm.closeWindow(this.id);
+                };
+                div.addEventListener('mousedown', () => window.wm.focusWindow(this.id));
+                return div;
+            }
+            setupDragging() {
+                const header = this.element.querySelector('.window-header');
+                let isDragging = false, startX, startY;
+                header.onmousedown = (e) => {
+                    isDragging = true;
+                    startX = e.clientX - this.element.offsetLeft;
+                    startY = e.clientY - this.element.offsetTop;
+                    this.element.classList.add('opacity-80');
+                    window.wm.focusWindow(this.id);
+                };
+                window.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    this.element.style.left = `${e.clientX - startX}px`;
+                    this.element.style.top = `${e.clientY - startY}px`;
+                });
+                window.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        this.element.classList.remove('opacity-80');
+                    }
+                });
+            }
+        }
+
+        class WindowManager {
+            constructor() {
+                this.windows = new Map();
+                this.container = document.getElementById('desktop');
+                this.zIndexCounter = 10;
+            }
+            createWindow(id, title, content, options) {
+                if (this.windows.has(id)) return this.focusWindow(id);
+                const win = new Window(id, title, content, options);
+                this.windows.set(id, win);
+                this.container.appendChild(win.element);
+                lucide.createIcons();
+                this.focusWindow(id);
+            }
+            closeWindow(id) {
+                const win = this.windows.get(id);
+                if (win) { win.element.remove(); this.windows.delete(id); }
+            }
+            focusWindow(id) {
+                const win = this.windows.get(id);
+                if (win) { win.element.style.zIndex = ++this.zIndexCounter; }
+            }
+        }
+    </script>
+    <!-- AppRegistry -->
+    <script>
+        class SystemManager {
+            constructor() {
+                this.clockEl = document.getElementById('clock');
+                this.cpuEl = document.getElementById('cpu-load');
+                this.ramEl = document.getElementById('ram-usage');
+                this.init();
+            }
+            init() {
+                this.updateClock();
+                this.updateStatus();
+                setInterval(() => this.updateClock(), 1000);
+                setInterval(() => this.updateStatus(), 3000);
+            }
+            updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                this.clockEl.textContent = `${hours}:${minutes}`;
+            }
+            updateStatus() {
+                const cpu = Math.floor(Math.random() * 15) + 5;
+                const ram = (Math.random() * (1.8 - 1.1) + 1.1).toFixed(1);
+                if (this.cpuEl) this.cpuEl.textContent = `CPU: ${cpu}%`;
+                if (this.ramEl) this.ramEl.textContent = `RAM: ${ram}GB`;
+            }
+        }
+
+        class CommandPalette {
+            constructor() {
+                this.overlay = document.getElementById('command-palette');
+                this.input = document.getElementById('palette-input');
+                this.results = document.getElementById('palette-results');
+                this.isOpen = false;
+                this.activeIndex = 0;
+                this.actions = [
+                    { id: 'tasks', name: 'Launch Tasks', icon: 'check-square', exec: () => window.registry.launch('tasks') },
+                    { id: 'pomodoro', name: 'Launch Timer', icon: 'timer', exec: () => window.registry.launch('pomodoro') },
+                    { id: 'notes', name: 'Launch Notes', icon: 'file-text', exec: () => window.registry.launch('notes') },
+                    { id: 'export', name: 'Export Workspace', icon: 'download', exec: () => this.exportWorkspace() },
+                    { id: 'clear', name: 'Clear Data', icon: 'trash-2', exec: () => this.clearData() }
+                ];
+                this.setupListeners();
+            }
+            setupListeners() {
+                // Handle Ctrl+K global shortcut to toggle overlay
+                window.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                        e.preventDefault();
+                        this.toggle();
+                    }
+                    if (!this.isOpen) return;
+                    if (e.key === 'Escape') this.toggle();
+                    if (e.key === 'ArrowDown') { e.preventDefault(); this.moveFocus(1); }
+                    if (e.key === 'ArrowUp') { e.preventDefault(); this.moveFocus(-1); }
+                    if (e.key === 'Enter') { e.preventDefault(); this.executeSelected(); }
+                });
+                this.input.oninput = () => this.renderResults();
+            }
+            toggle() {
+                this.isOpen = !this.isOpen;
+                this.overlay.classList.toggle('hidden', !this.isOpen);
+                if (this.isOpen) {
+                    this.input.value = '';
+                    this.input.focus();
+                    this.renderResults();
+                }
+            }
+            moveFocus(dir) {
+                const items = this.results.querySelectorAll('.command-palette-item');
+                this.activeIndex = (this.activeIndex + dir + items.length) % items.length;
+                this.updateFocus();
+            }
+            updateFocus() {
+                const items = this.results.querySelectorAll('.command-palette-item');
+                items.forEach((item, i) => {
+                    item.classList.toggle('active', i === this.activeIndex);
+                    if (i === this.activeIndex) item.scrollIntoView({ block: 'nearest' });
+                });
+            }
+            renderResults() {
+                const query = this.input.value.toLowerCase();
+                const filtered = this.actions.filter(a => a.name.toLowerCase().includes(query));
+                this.results.innerHTML = filtered.map((a, i) => `
+                    <div class="command-palette-item flex items-center gap-3 p-3 rounded-lg border border-transparent transition-all cursor-pointer ${i === 0 ? 'active' : ''}" onclick="window.palette.execute('${a.id}')">
+                        <i data-lucide="${a.icon}" class="w-4 h-4 text-white/40"></i>
+                        <span class="text-sm font-medium text-white/80">${a.name}</span>
+                    </div>
+                `).join('');
+                this.activeIndex = 0;
+                lucide.createIcons();
+            }
+            executeSelected() {
+                const query = this.input.value.toLowerCase();
+                const filtered = this.actions.filter(a => a.name.toLowerCase().includes(query));
+                if (filtered[this.activeIndex]) {
+                    filtered[this.activeIndex].exec();
+                    this.toggle();
+                }
+            }
+            execute(id) {
+                const action = this.actions.find(a => a.id === id);
+                if (action) {
+                    action.exec();
+                    this.toggle();
+                }
+            }
+            exportWorkspace() {
+                const dataStr = JSON.stringify(window.state.data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'zenflow_workspace.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            clearData() {
+                if (confirm('Clear all workspace data and reload?')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            }
+        }
+
+        class AppRegistry {
+            constructor() {
+                this.apps = new Map();
+            }
+            register(id, appClass, metadata) {
+                this.apps.set(id, { appClass, ...metadata });
+            }
+            launch(id) {
+                const app = this.apps.get(id);
+                if (app) {
+                    const instance = new app.appClass();
+                    window.wm.createWindow(id, app.name, instance.render(), app.options);
+                    if (instance.onMount) instance.onMount(id);
+                }
+            }
+        }
+    </script>
+
+    <!-- DesktopManager -->
+    <script>
+        class DesktopManager {
+            constructor() {
+                this.container = document.getElementById('desktop');
+            }
+            addIcon(id, name, icon) {
+                const div = document.createElement('div');
+                div.className = 'desktop-icon w-24 h-24 flex flex-col items-center justify-center gap-2 rounded-xl cursor-pointer p-2';
+                div.innerHTML = `
+                    <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                        <i data-lucide="${icon}" class="w-6 h-6 text-white/80"></i>
+                    </div>
+                    <span class="text-xs font-medium text-white/60">${name}</span>
+                `;
+                div.onclick = () => window.registry.launch(id);
+                this.container.appendChild(div);
+                lucide.createIcons();
+            }
+        }
+    </script>
+
+    <!-- Apps -->
+    <script>
+        class TaskManager {
+            render() {
+                return `
+                    <div class="flex flex-col h-full gap-4">
+                        <div class="flex gap-2">
+                            <input id="task-input" type="text" placeholder="New task..." class="flex-1 bg-white/5 border border-white/10 rounded px-3 py-1 text-sm outline-none focus:border-blue-500/50">
+                            <button id="add-task-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors">Add</button>
+                        </div>
+                        <div class="flex-1 grid grid-cols-3 gap-4 h-full min-h-0">
+                            ${['todo', 'in-progress', 'done'].map(status => `
+                                <div class="flex flex-col gap-2">
+                                    <h3 class="text-[10px] font-bold uppercase tracking-wider text-white/40 px-1">${status.replace('-', ' ')}</h3>
+                                    <div id="col-${status}" class="kanban-col flex-1 bg-black/20 rounded-lg p-2 space-y-2 overflow-y-auto border border-white/5" ondragover="event.preventDefault()" ondrop="window.apps.tasks.handleDrop(event, '${status}')">
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            onMount(id) {
+                window.apps = window.apps || {};
+                window.apps.tasks = this;
+                this.containerId = `win-${id}`;
+                this.renderTasks();
+                
+                const input = document.querySelector(`#${this.containerId} #task-input`);
+                const btn = document.querySelector(`#${this.containerId} #add-task-btn`);
+                
+                btn.onclick = () => this.addTask(input.value);
+                input.onkeypress = (e) => e.key === 'Enter' && this.addTask(input.value);
+            }
+
+            renderTasks() {
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+                ['todo', 'in-progress', 'done'].forEach(status => {
+                    const col = container.querySelector(`#col-${status}`);
+                    if (!col) return;
+                    col.innerHTML = '';
+                    window.state.data.tasks
+                        .filter(t => t.status === status)
+                        .forEach(task => {
+                            const item = document.createElement('div');
+                            item.className = 'group bg-white/5 p-3 rounded-md border border-white/10 cursor-grab active:cursor-grabbing hover:border-white/20 transition-all relative';
+                            item.draggable = true;
+                            item.innerHTML = `
+                                <p class="text-sm text-white/80 pr-6">${task.text}</p>
+                                <button onclick="window.apps.tasks.deleteTask(${task.id})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            `;
+                            item.ondragstart = (e) => {
+                                e.dataTransfer.setData('taskId', task.id);
+                                item.classList.add('opacity-50');
+                            };
+                            item.ondragend = () => item.classList.remove('opacity-50');
+                            col.appendChild(item);
+                        });
+                });
+                lucide.createIcons();
+            }
+
+            addTask(text) {
+                if (!text.trim()) return;
+                const newTask = { id: Date.now(), text, status: 'todo' };
+                window.state.data.tasks = [...window.state.data.tasks, newTask];
+                const input = document.querySelector(`#${this.containerId} #task-input`);
+                if (input) input.value = '';
+                this.renderTasks();
+            }
+
+            deleteTask(id) {
+                window.state.data.tasks = window.state.data.tasks.filter(t => t.id !== id);
+                this.renderTasks();
+            }
+
+            handleDrop(e, status) {
+                e.preventDefault();
+                const taskId = parseInt(e.dataTransfer.getData('taskId'));
+                const tasks = [...window.state.data.tasks];
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.status = status;
+                    window.state.data.tasks = tasks;
+                    this.renderTasks();
+                }
+            }
+        }
+
+        class PomodoroApp {
+            constructor() {
+                this.timer = null;
+            }
+
+            render() {
+                return `
+                    <div class="flex flex-col items-center justify-center h-full space-y-8">
+                        <div class="relative w-48 h-48">
+                            <svg class="w-full h-full -rotate-90">
+                                <circle cx="96" cy="96" r="88" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/5" />
+                                <circle id="pomodoro-progress" cx="96" cy="96" r="88" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="553" stroke-dashoffset="553" class="text-blue-500 transition-all duration-1000" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="timer-display" class="text-4xl font-bold font-mono">25:00</span>
+                                <span class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Focus Session</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <button id="pomo-toggle" class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center hover:bg-blue-700 transition-colors">
+                                <i id="pomo-icon" data-lucide="play" class="w-6 h-6 text-white"></i>
+                            </button>
+                            <button id="pomo-reset" class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors border border-white/10">
+                                <i data-lucide="refresh-cw" class="w-5 h-5 text-white/80"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            onMount(id) {
+                this.containerId = `win-${id}`;
+                this.updateDisplay();
+                
+                const toggleBtn = document.querySelector(`#${this.containerId} #pomo-toggle`);
+                const resetBtn = document.querySelector(`#${this.containerId} #pomo-reset`);
+                
+                toggleBtn.onclick = () => this.toggle();
+                resetBtn.onclick = () => this.reset();
+            }
+
+            toggle() {
+                const state = window.state.data.pomodoro;
+                state.running = !state.running;
+                if (state.running) {
+                    this.timer = setInterval(() => this.tick(), 1000);
+                } else {
+                    clearInterval(this.timer);
+                }
+                this.updateUI();
+            }
+
+            reset() {
+                clearInterval(this.timer);
+                window.state.data.pomodoro = { time: 1500, running: false, sessions: window.state.data.pomodoro.sessions };
+                this.updateUI();
+                this.updateDisplay();
+            }
+
+            tick() {
+                const state = window.state.data.pomodoro;
+                if (state.time > 0) {
+                    state.time--;
+                    this.updateDisplay();
+                } else {
+                    this.complete();
+                }
+            }
+
+            complete() {
+                clearInterval(this.timer);
+                window.state.data.pomodoro.running = false;
+                window.state.data.pomodoro.sessions++;
+                this.beep();
+                this.updateUI();
+                alert('Time is up! Great job staying focused.');
+            }
+
+            updateDisplay() {
+                const time = window.state.data.pomodoro.time;
+                const minutes = Math.floor(time / 60);
+                const seconds = time % 60;
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+                const display = container.querySelector('#timer-display');
+                const progress = container.querySelector('#pomodoro-progress');
+                
+                if (display) display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (progress) {
+                    const offset = 553 - (553 * (time / 1500));
+                    progress.style.strokeDashoffset = offset;
+                }
+            }
+
+            updateUI() {
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+                const icon = container.querySelector('#pomo-icon');
+                if (icon) {
+                    icon.setAttribute('data-lucide', window.state.data.pomodoro.running ? 'pause' : 'play');
+                    lucide.createIcons();
+                }
+            }
+
+            beep() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    gain.gain.setValueAtTime(0, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.5);
+                } catch (e) { console.warn('Audio failed', e); }
+            }
+        }
+
+        class NotesApp {
+            render() {
+                return `
+                    <div class="flex h-full gap-4">
+                        <div class="flex-1 flex flex-col gap-2">
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider text-white/40 px-1">Markdown Editor</h3>
+                            <textarea id="note-input" class="flex-1 bg-white/5 border border-white/10 rounded-lg p-4 text-sm font-mono outline-none focus:border-blue-500/30 resize-none">${window.state.data.notes}</textarea>
+                        </div>
+                        <div class="flex-1 flex flex-col gap-2">
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider text-white/40 px-1">Preview</h3>
+                            <div id="note-preview" class="flex-1 bg-black/20 border border-white/5 rounded-lg p-4 text-sm text-white/70 overflow-y-auto prose prose-invert max-w-none">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            onMount(id) {
+                this.containerId = `win-${id}`;
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+                const input = container.querySelector('#note-input');
+                const preview = container.querySelector('#note-preview');
+                
+                const update = () => {
+                    window.state.data.notes = input.value;
+                    this.renderPreview(preview, input.value);
+                };
+                
+                input.oninput = update;
+                this.renderPreview(preview, input.value);
+            }
+
+            renderPreview(el, text) {
+                if (!el) return;
+                // Simple Markdown-lite
+                let html = text
+                    .replace(/^# (.*$)/gim, '<h1 class="text-xl font-bold mb-4 border-b border-white/10 pb-2">$1</h1>')
+                    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-bold mb-3">$1</h2>')
+                    .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+                    .replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+                    .replace(/\n/g, '<br>');
+                el.innerHTML = html;
+            }
+        }
+    </script>
+
+    <script>
+        // Initialize Core Systems
+        window.state = new ZenFlowState();
+        window.wm = new WindowManager();
+        window.registry = new AppRegistry();
+        window.desktop = new DesktopManager();
+        window.system = new SystemManager();
+        window.palette = new CommandPalette();
+
+        // Register Apps
+        window.registry.register('tasks', TaskManager, { 
+            name: 'Tasks', icon: 'check-square', options: { width: 600, height: 400 } 
+        });
+        window.registry.register('pomodoro', PomodoroApp, { 
+            name: 'Pomodoro', icon: 'timer', options: { width: 300, height: 400 } 
+        });
+        window.registry.register('notes', NotesApp, { 
+            name: 'Notes', icon: 'file-text', options: { width: 700, height: 500 } 
+        });
+
+        // Setup Desktop
+        window.desktop.addIcon('tasks', 'Tasks', 'check-square');
+        window.desktop.addIcon('pomodoro', 'Timer', 'timer');
+        window.desktop.addIcon('notes', 'Notes', 'file-text');
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Welcome Window
+        window.wm.createWindow('welcome', 'Welcome', `
+            <div class="space-y-4">
+                <h2 class="text-xl font-bold text-white">Welcome to ZenFlow OS</h2>
+                <p class="text-white/60">A minimalist productive environment built for focus.</p>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="window.registry.launch('tasks')" class="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors text-left">
+                        <i data-lucide="check-square" class="w-5 h-5 text-blue-400"></i>
+                        <div>
+                            <div class="text-sm font-medium">Try Task Manager</div>
+                            <div class="text-[10px] text-white/40">Drag and drop Kanban board</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        `);
+    </script>
+</body>
+</html>

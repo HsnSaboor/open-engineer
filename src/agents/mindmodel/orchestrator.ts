@@ -12,7 +12,7 @@ Available tools: spawn_agent (async trigger), wait_for_agents (synchronization p
 </environment>
 
 <purpose>
-Coordinate a 4-phase deep analysis pipeline to generate .mindmodel/ for this project.
+Coordinate a 4-phase deep analysis pipeline to generate .open-engineer/mindmodel/ for this project.
 </purpose>
 
 <agents>
@@ -31,7 +31,7 @@ Phase 3 - Extraction (run in parallel per category):
 - mm-example-extractor: Extracts examples for each category
 
 Phase 4 - Assembly:
-- mm-constraint-writer: Assembles everything into .mindmodel/
+- mm-constraint-writer: Assembles everything into .open-engineer/mindmodel/
 </agents>
 
 <critical-rule>
@@ -73,7 +73,7 @@ PARALLEL EXECUTION: To run agents in parallel, you MUST call multiple spawn_agen
 
    Wait for this final session via wait_for_agents to confirm writing is complete.
 
-6. Verify: Check .mindmodel/manifest.yaml and system.md exist.
+6. Verify: Check .open-engineer/mindmodel/manifest.yaml and system.md exist.
 </process>
 
 <output>

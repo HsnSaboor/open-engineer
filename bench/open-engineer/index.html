@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Nexus | Generative Physics Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #050505;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .glass {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .btn-nexus {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-nexus::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-nexus:hover::after {
+            width: 200%;
+            height: 200%;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="nexusCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div class="fixed top-4 left-4 right-4 md:right-auto md:w-80 z-10 glass p-5 md:p-6 rounded-2xl flex flex-col gap-4 md:gap-6 pointer-events-auto transition-all duration-500">
+        <header class="flex justify-between items-center md:block">
+            <div>
+                <h1 class="text-xl md:text-2xl font-semibold tracking-tight">Neural Nexus</h1>
+                <p class="text-[10px] md:text-xs text-white/50 uppercase tracking-widest mt-1">Generative Physics Visualizer</p>
+            </div>
+            <button onclick="togglePanel()" class="md:hidden glass p-2 rounded-lg text-white/70">
+                <svg id="toggleIcon" class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </header>
+
+        <div id="controls" class="space-y-4 md:block">
+            <!-- Particle Count -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-medium">
+                    <span class="text-white/70">Particles</span>
+                    <span id="countVal">800</span>
+                </div>
+                <input type="range" id="particleCount" min="100" max="2000" value="800">
+            </div>
+
+            <!-- Gravity Strength -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-medium">
+                    <span class="text-white/70">Gravity Force</span>
+                    <span id="gravityVal">0.05</span>
+                </div>
+                <input type="range" id="gravityStrength" min="0" max="0.5" step="0.01" value="0.05">
+            </div>
+
+            <!-- Friction -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-medium">
+                    <span class="text-white/70">Friction</span>
+                    <span id="frictionVal">0.98</span>
+                </div>
+                <input type="range" id="friction" min="0.8" max="0.99" step="0.01" value="0.98">
+            </div>
+
+            <!-- Color Schemes -->
+            <div class="space-y-2">
+                <label class="text-xs font-medium text-white/70">Color Scheme</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setTheme('neon')" class="py-2 text-[10px] uppercase font-bold border border-white/10 rounded-lg hover:bg-white/10 transition-colors">Neon</button>
+                    <button onclick="setTheme('ember')" class="py-2 text-[10px] uppercase font-bold border border-white/10 rounded-lg hover:bg-white/10 transition-colors">Ember</button>
+                    <button onclick="setTheme('mono')" class="py-2 text-[10px] uppercase font-bold border border-white/10 rounded-lg hover:bg-white/10 transition-colors">Mono</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-white/10 flex gap-2">
+            <button id="snapshotBtn" class="flex-1 py-3 bg-white text-black text-xs font-bold uppercase tracking-wider rounded-xl btn-nexus">
+                Snapshot
+            </button>
+            <button onclick="toggleInfo()" class="px-4 py-3 glass rounded-xl text-white/70 hover:text-white transition-colors">
+                ?
+            </button>
+        </div>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <div id="infoBox" class="hidden fixed inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6 pointer-events-none">
+        <div class="glass p-8 rounded-3xl max-w-md w-full pointer-events-auto">
+            <h2 class="text-xl font-bold mb-4">How to Interact</h2>
+            <ul class="space-y-3 text-sm text-white/70">
+                <li class="flex items-start gap-3">
+                    <span class="w-2 h-2 mt-1.5 bg-cyan-400 rounded-full"></span>
+                    <span><strong>Click & Hold:</strong> Summon particles towards your cursor (Gravity).</span>
+                </li>
+                <li class="flex items-start gap-3">
+                    <span class="w-2 h-2 mt-1.5 bg-rose-400 rounded-full"></span>
+                    <span><strong>Double Click:</strong> Repel particles violently away from the cursor.</span>
+                </li>
+                <li class="flex items-start gap-3">
+                    <span class="w-2 h-2 mt-1.5 bg-amber-400 rounded-full"></span>
+                    <span><strong>Motion Trails:</strong> Higher friction creates denser structures.</span>
+                </li>
+            </ul>
+            <button onclick="toggleInfo()" class="mt-8 w-full py-3 border border-white/10 rounded-xl hover:bg-white/10 transition-colors font-bold uppercase text-xs tracking-widest">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * NEURAL NEXUS ENGINE
+         * Custom 2D Physics & Spatial Partitioning
+         */
+
+        class Vector2D {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+            add(v) { this.x += v.x; this.y += v.y; return this; }
+            sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+            mult(n) { this.x *= n; this.y *= n; return this; }
+            mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+            normalize() {
+                const m = this.mag();
+                if (m > 0) this.mult(1 / m);
+                return this;
+            }
+            dist(v) {
+                const dx = this.x - v.x;
+                const dy = this.y - v.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            static sub(v1, v2) {
+                return new Vector2D(v1.x - v2.x, v1.y - v2.y);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.pos = new Vector2D(x, y);
+                this.vel = new Vector2D((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+                this.acc = new Vector2D();
+                this.radius = 1.5 + Math.random() * 2;
+                this.color = color;
+                this.maxSpeed = 4;
+            }
+
+            applyForce(force) {
+                this.acc.add(force);
+            }
+
+            update(friction) {
+                this.vel.add(this.acc);
+                this.vel.mult(friction);
+                
+                // Cap speed
+                const speed = this.vel.mag();
+                if (speed > this.maxSpeed) {
+                    this.vel.normalize().mult(this.maxSpeed);
+                }
+
+                this.pos.add(this.vel);
+                this.acc.mult(0);
+            }
+
+            edges(width, height) {
+                const damp = -0.8;
+                if (this.pos.x < 0) {
+                    this.pos.x = 0;
+                    this.vel.x *= damp;
+                } else if (this.pos.x > width) {
+                    this.pos.x = width;
+                    this.vel.x *= damp;
+                }
+
+                if (this.pos.y < 0) {
+                    this.pos.y = 0;
+                    this.vel.y *= damp;
+                } else if (this.pos.y > height) {
+                    this.pos.y = height;
+                    this.vel.y *= damp;
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Spatial Hash Grid for O(n) proximity detection
+        class SpatialHash {
+            constructor(width, height, cellSize) {
+                this.cellSize = cellSize;
+                this.cols = Math.ceil(width / cellSize);
+                this.rows = Math.ceil(height / cellSize);
+                this.grid = new Array(this.cols * this.rows);
+            }
+
+            clear() {
+                for (let i = 0; i < this.grid.length; i++) {
+                    this.grid[i] = [];
+                }
+            }
+
+            insert(particle) {
+                const col = Math.floor(particle.pos.x / this.cellSize);
+                const row = Math.floor(particle.pos.y / this.cellSize);
+                if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+                    this.grid[col + row * this.cols].push(particle);
+                }
+            }
+
+            getNeighbors(particle, radius) {
+                const neighbors = [];
+                const col = Math.floor(particle.pos.x / this.cellSize);
+                const row = Math.floor(particle.pos.y / this.cellSize);
+                const range = Math.ceil(radius / this.cellSize);
+
+                for (let i = -range; i <= range; i++) {
+                    for (let j = -range; j <= range; j++) {
+                        const c = col + i;
+                        const r = row + j;
+                        if (c >= 0 && c < this.cols && r >= 0 && r < this.rows) {
+                            neighbors.push(...this.grid[c + r * this.cols]);
+                        }
+                    }
+                }
+                return neighbors;
+            }
+        }
+
+        class Simulation {
+            constructor() {
+                this.canvas = document.getElementById('nexusCanvas');
+                this.ctx = this.canvas.getContext('2d', { alpha: false });
+                this.particles = [];
+                this.mouse = new Vector2D(-1000, -1000);
+                this.isMouseDown = false;
+                this.isRepelling = false;
+                
+                // Config
+                this.config = {
+                    count: 800,
+                    gravity: 0.05,
+                    friction: 0.98,
+                    theme: 'neon',
+                    lineDist: 80
+                };
+
+                this.themes = {
+                    neon: ['#00f2ff', '#0062ff', '#7000ff', '#ff00d9'],
+                    ember: ['#ff4d00', '#ff8800', '#ffcc00', '#ff0055'],
+                    mono: ['#ffffff', '#888888', '#cccccc', '#444444']
+                };
+
+                this.init();
+                this.setupEventListeners();
+                this.animate();
+            }
+
+            init() {
+                this.resize();
+                this.spawnParticles();
+                this.spatialHash = new SpatialHash(this.width, this.height, 100);
+            }
+
+            resize() {
+                this.dpr = window.devicePixelRatio || 1;
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width * this.dpr;
+                this.canvas.height = this.height * this.dpr;
+                this.ctx.scale(this.dpr, this.dpr);
+                if (this.spatialHash) {
+                    this.spatialHash = new SpatialHash(this.width, this.height, 100);
+                }
+            }
+
+            spawnParticles() {
+                this.particles = [];
+                const colors = this.themes[this.config.theme];
+                for (let i = 0; i < this.config.count; i++) {
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    this.particles.push(new Particle(
+                        Math.random() * this.width,
+                        Math.random() * this.height,
+                        color
+                    ));
+                }
+            }
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.resize());
+                
+                window.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() === 'h') {
+                        document.querySelector('.fixed.top-4').classList.toggle('opacity-0');
+                        document.querySelector('.fixed.top-4').classList.toggle('pointer-events-none');
+                    }
+                });
+
+                const updateMouse = (x, y) => {
+                    this.mouse.x = x;
+                    this.mouse.y = y;
+                };
+
+                this.canvas.addEventListener('mousemove', (e) => updateMouse(e.clientX, e.clientY));
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+                }, { passive: false });
+
+                this.canvas.addEventListener('mousedown', () => this.isMouseDown = true);
+                this.canvas.addEventListener('mouseup', () => this.isMouseDown = false);
+                this.canvas.addEventListener('touchstart', (e) => {
+                    this.isMouseDown = true;
+                    updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+                });
+                this.canvas.addEventListener('touchend', () => this.isMouseDown = false);
+                
+                this.canvas.addEventListener('dblclick', () => {
+                    this.isRepelling = true;
+                    setTimeout(() => this.isRepelling = false, 500);
+                });
+
+                // UI Hooks
+                document.getElementById('particleCount').oninput = (e) => {
+                    this.config.count = parseInt(e.target.value);
+                    document.getElementById('countVal').innerText = this.config.count;
+                    this.spawnParticles();
+                };
+
+                document.getElementById('gravityStrength').oninput = (e) => {
+                    this.config.gravity = parseFloat(e.target.value);
+                    document.getElementById('gravityVal').innerText = this.config.gravity.toFixed(2);
+                };
+
+                document.getElementById('friction').oninput = (e) => {
+                    this.config.friction = parseFloat(e.target.value);
+                    document.getElementById('frictionVal').innerText = this.config.friction.toFixed(2);
+                };
+
+                document.getElementById('snapshotBtn').onclick = () => this.snapshot();
+            }
+
+            snapshot() {
+                const link = document.createElement('a');
+                link.download = `neural-nexus-${Date.now()}.png`;
+                link.href = this.canvas.toDataURL('image/png');
+                link.click();
+            }
+
+            update() {
+                this.spatialHash.clear();
+                this.particles.forEach(p => this.spatialHash.insert(p));
+
+                this.particles.forEach(p => {
+                    // Particle-to-Particle Repulsion (Local)
+                    const neighbors = this.spatialHash.getNeighbors(p, 20);
+                    neighbors.forEach(n => {
+                        if (p === n) return;
+                        const d = p.pos.dist(n.pos);
+                        if (d < 20 && d > 0) {
+                            const repulsion = Vector2D.sub(p.pos, n.pos);
+                            repulsion.normalize().mult(0.1 / d); // Inverse distance force
+                            p.applyForce(repulsion);
+                        }
+                    });
+
+                    // Mouse Interactions
+                    const d = p.pos.dist(this.mouse);
+                    if (this.isRepelling && d < 300) {
+                        const force = Vector2D.sub(p.pos, this.mouse);
+                        force.normalize().mult(15); // Powerful blast
+                        p.applyForce(force);
+                    } else if (this.isMouseDown && d < 500) {
+                        const force = Vector2D.sub(this.mouse, p.pos);
+                        force.normalize().mult(this.config.gravity * 2);
+                        p.applyForce(force);
+                    }
+
+                    p.update(this.config.friction);
+                    p.edges(this.width, this.height);
+                });
+            }
+
+            draw() {
+                // Motion Blur effect
+                this.ctx.fillStyle = 'rgba(5, 5, 5, 0.15)';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.particles.forEach(p => {
+                    // Constellation Lines
+                    const neighbors = this.spatialHash.getNeighbors(p, this.config.lineDist);
+                    neighbors.forEach(n => {
+                        if (p === n) return;
+                        const d = p.pos.dist(n.pos);
+                        if (d < this.config.lineDist) {
+                            this.ctx.strokeStyle = p.color;
+                            this.ctx.globalAlpha = (1 - d / this.config.lineDist) * 0.2;
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(p.pos.x, p.pos.y);
+                            this.ctx.lineTo(n.pos.x, n.pos.y);
+                            this.ctx.stroke();
+                        }
+                    });
+                    
+                    this.ctx.globalAlpha = 1;
+                    p.draw(this.ctx);
+                });
+            }
+
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // Global instances and helpers
+        let sim;
+        window.onload = () => {
+            sim = new Simulation();
+        };
+
+        function setTheme(theme) {
+            sim.config.theme = theme;
+            sim.spawnParticles();
+        }
+
+        function toggleInfo() {
+            const el = document.getElementById('infoBox');
+            el.classList.toggle('hidden');
+        }
+
+        function togglePanel() {
+            const controls = document.getElementById('controls');
+            const icon = document.getElementById('toggleIcon');
+            controls.classList.toggle('hidden');
+            icon.style.transform = controls.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    </script>
+</body>
+</html>

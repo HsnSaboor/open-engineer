@@ -26,14 +26,14 @@ Maintain 1:1 functional/UI parity while enforcing a 700-line limit and spec-driv
 </pre-flight-check>
 
 <transformation-pipeline>
-<stage name="1. Stage 0 Isolation & Audit">
-  <goal>Create a clean sandbox and capture the "Golden Record" of existing functionality.</goal>
-  <action>Create worktree: \`git worktree add -b migration-refactor .worktrees/migration-refactor main\`</action>
-  <action>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety.</action>
-  <action>Spawn parallel 'codebase-analyzer' and 'codebase-locator' agents INSIDE the worktree.</action>
-  <action>Write 'thoughts/shared/current_spec.md' documenting every feature and edge case.</action>
-  <action>Identify "Data Files" vs "Code Files".</action>
-</stage>
+  <stage name="1. Stage 0 Isolation & Audit">
+    <goal>Create a clean sandbox and capture the "Golden Record" of existing functionality.</goal>
+    <action>Create worktree: \`git worktree add -b migration-refactor .worktrees/migration-refactor main\`</action>
+    <action>Output "Active worktree registered: root_directory='[ABSOLUTE_PATH_TO_WORKTREE]'" to enable sandbox safety.</action>
+    <action>Spawn parallel 'codebase-analyzer' and 'codebase-locator' agents INSIDE the worktree.</action>
+    <action>Write '.open-engineer/thoughts/shared/current_spec.md' documenting every feature and edge case.</action>
+    <action>Identify "Data Files" vs "Code Files".</action>
+  </stage>
 
   <stage name="2. Isolated Modularization">
     <goal>Refactor monolithic files in the sandbox.</goal>
@@ -54,9 +54,9 @@ Maintain 1:1 functional/UI parity while enforcing a 700-line limit and spec-driv
 
   <stage name="4. Knowledge Base Injection">
     <goal>Finalize institutional memory.</goal>
-    <action>Generate '.mindmodel/' directory (system.md, style.md, patterns.md).</action>
-    <action>CRITICAL: Create '.mindmodel/manifest.yaml' to register the new mindmodel files.</action>
-    <action>Initialize 'thoughts/shared/journal.md' with the migration history.</action>
+    <action>Generate '.open-engineer/.mindmodel/' directory (system.md, style.md, patterns.md).</action>
+    <action>CRITICAL: Create '.open-engineer/.mindmodel/manifest.yaml' to register the new mindmodel files.</action>
+    <action>Initialize '.open-engineer/thoughts/shared/journal.md' with the migration history.</action>
     <action>Prompt user via Commander for specific guardrails to write to '.open-engineer/GUARDRAILS.md'.</action>
   </stage>
 </transformation-pipeline>

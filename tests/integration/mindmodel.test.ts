@@ -17,7 +17,7 @@ describe("mindmodel integration", () => {
 
   it("should load and format mindmodel examples", async () => {
     // Setup .mindmodel directory
-    const mindmodelDir = join(testDir, ".mindmodel");
+    const mindmodelDir = join(testDir, ".open-engineer/mindmodel");
     mkdirSync(join(mindmodelDir, "components"), { recursive: true });
 
     writeFileSync(

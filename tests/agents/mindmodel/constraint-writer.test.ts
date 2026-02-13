@@ -15,7 +15,7 @@ describe("constraint-writer agent", () => {
   });
 
   it("should have prompt that assembles .mindmodel/ structure", () => {
-    expect(constraintWriterAgent.prompt).toContain(".mindmodel");
+    expect(constraintWriterAgent.prompt).toContain(".open-engineer/mindmodel");
     expect(constraintWriterAgent.prompt).toContain("manifest");
   });
 });

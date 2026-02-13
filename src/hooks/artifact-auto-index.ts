@@ -8,8 +8,8 @@ import type { PluginInput } from "@opencode-ai/plugin";
 import { getArtifactIndex } from "../tools/artifact-index";
 import { log } from "../utils/logger";
 
-const LEDGER_PATH_PATTERN = /thoughts\/ledgers\/CONTINUITY_(.+)\.md$/;
-const PLAN_PATH_PATTERN = /thoughts\/shared\/plans\/(.+)\.md$/;
+const LEDGER_PATH_PATTERN = /\.open-engineer\/thoughts\/ledgers\/CONTINUITY_(.+)\.md$/;
+const PLAN_PATH_PATTERN = /\.open-engineer\/thoughts\/shared\/plans\/(.+)\.md$/;
 
 export function parseLedger(content: string, filePath: string, sessionName: string) {
   const goalMatch = content.match(/## Goal\n([^\n]+)/);

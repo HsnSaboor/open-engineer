@@ -52,7 +52,7 @@ export const config = {
    */
   paths: {
     /** Directory for ledger files */
-    ledgerDir: "thoughts/ledgers",
+    ledgerDir: ".open-engineer/thoughts/ledgers",
     /** Prefix for ledger filenames */
     ledgerPrefix: "CONTINUITY_",
     /** Context files to inject from project root */
@@ -60,11 +60,11 @@ export const config = {
     /** Context files to collect when walking up directories */
     dirContextFiles: ["README.md"] as readonly string[],
     /** Pattern to match plan files */
-    planPattern: /thoughts\/shared\/plans\/.*\.md$/,
+    planPattern: /\.open-engineer\/thoughts\/shared\/plans\/.*\.md$/,
     /** Pattern to match ledger files */
-    ledgerPattern: /thoughts\/ledgers\/CONTINUITY_.*\.md$/,
+    ledgerPattern: /\.open-engineer\/thoughts\/ledgers\/CONTINUITY_.*\.md$/,
     /** Directory for mindmodel files */
-    mindmodelDir: ".mindmodel",
+    mindmodelDir: ".open-engineer/mindmodel",
     /** Mindmodel manifest filename */
     mindmodelManifest: "manifest.yaml",
     /** Mindmodel system file */
@@ -122,7 +122,7 @@ export const config = {
     /** Max follow-up questions per branch */
     maxQuestions: 15,
     /** State directory for brainstorm sessions */
-    stateDir: "thoughts/brainstorms",
+    stateDir: ".open-engineer/thoughts/brainstorms",
     /** Bind address for brainstorm server */
     bindAddress: "127.0.0.1",
     /** Allow overriding bind address for remote access */

@@ -139,25 +139,25 @@ The redesigned artifact system treats artifacts as first‑class records stored 
 </phase>
 
 <phase name="finalizing" trigger="after presenting design">
-  <action>Write validated design to thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md</action>
+  <action>Write validated design to .open-engineer/thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md</action>
   <action>Commit the design document to git</action>
   <action>IMMEDIATELY spawn planner - do NOT ask "Ready for planner?"</action>
   <spawn>
     Task(
       subagent_type="planner",
-      prompt="Create a detailed implementation plan based on the design at thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md",
+      prompt="Create a detailed implementation plan based on the design at .open-engineer/thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md",
       description="Create implementation plan"
     )
   </spawn>
 </phase>
 
 <phase name="handoff" trigger="planner completes">
-  <action>Report: "Implementation plan created at thoughts/shared/plans/YYYY-MM-DD-{topic}.md"</action>
+  <action>Report: "Implementation plan created at .open-engineer/thoughts/shared/plans/YYYY-MM-DD-{topic}.md"</action>
   <action>IMMEDIATELY spawn executor - do NOT ask "Ready to execute?"</action>
   <spawn>
     Task(
       subagent_type="executor",
-      prompt="Execute the implementation plan at thoughts/shared/plans/YYYY-MM-DD-{topic}.md",
+      prompt="Execute the implementation plan at .open-engineer/thoughts/shared/plans/YYYY-MM-DD-{topic}.md",
       description="Execute implementation plan"
     )
   </spawn>
@@ -244,7 +244,7 @@ The redesigned artifact system treats artifacts as first‑class records stored 
   <forbidden>NEVER ask "which comment number should we tackle next?" - just move to the next one</forbidden>
 </never-do>
 
-<output-format path="thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md">
+<output-format path=".open-engineer/thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md">
 <frontmatter>
 date: YYYY-MM-DD
 topic: "[Design Topic]"

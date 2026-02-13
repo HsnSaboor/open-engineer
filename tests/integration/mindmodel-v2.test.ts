@@ -18,9 +18,9 @@ describe("mindmodel v2 integration", () => {
   it("should load v2 manifest with groups", async () => {
     const { loadMindmodel } = await import("../../src/mindmodel");
 
-    await mkdir(join(tempDir, ".mindmodel", "patterns"), { recursive: true });
+    await mkdir(join(tempDir, ".open-engineer/mindmodel", "patterns"), { recursive: true });
     await writeFile(
-      join(tempDir, ".mindmodel", "manifest.yaml"),
+      join(tempDir, ".open-engineer/mindmodel", "manifest.yaml"),
       `name: test-project
 version: 2
 categories:
@@ -29,7 +29,7 @@ categories:
     group: patterns`,
     );
     await writeFile(
-      join(tempDir, ".mindmodel", "patterns", "error-handling.md"),
+      join(tempDir, ".open-engineer/mindmodel", "patterns", "error-handling.md"),
       `# Error Handling
 
 ## Rules
@@ -179,11 +179,11 @@ const x = undefined;
     const { loadMindmodel, loadExamples, formatExamplesForInjection } = await import("../../src/mindmodel");
 
     // Setup v2 .mindmodel directory with grouped structure
-    await mkdir(join(tempDir, ".mindmodel", "patterns"), { recursive: true });
-    await mkdir(join(tempDir, ".mindmodel", "style"), { recursive: true });
+    await mkdir(join(tempDir, ".open-engineer/mindmodel", "patterns"), { recursive: true });
+    await mkdir(join(tempDir, ".open-engineer/mindmodel", "style"), { recursive: true });
 
     await writeFile(
-      join(tempDir, ".mindmodel", "manifest.yaml"),
+      join(tempDir, ".open-engineer/mindmodel", "manifest.yaml"),
       `name: test-project
 version: 2
 categories:
@@ -196,7 +196,7 @@ categories:
     );
 
     await writeFile(
-      join(tempDir, ".mindmodel", "patterns", "error-handling.md"),
+      join(tempDir, ".open-engineer/mindmodel", "patterns", "error-handling.md"),
       `# Error Handling
 
 ## Rules
@@ -224,7 +224,7 @@ if (err) {
     );
 
     await writeFile(
-      join(tempDir, ".mindmodel", "style", "naming.md"),
+      join(tempDir, ".open-engineer/mindmodel", "style", "naming.md"),
       `# Naming Conventions
 
 ## Rules
@@ -280,10 +280,10 @@ function getUserById(id: string) {}
   it("should support backward compatible v1 manifest without groups", async () => {
     const { loadMindmodel } = await import("../../src/mindmodel");
 
-    await mkdir(join(tempDir, ".mindmodel", "components"), { recursive: true });
+    await mkdir(join(tempDir, ".open-engineer/mindmodel", "components"), { recursive: true });
 
     await writeFile(
-      join(tempDir, ".mindmodel", "manifest.yaml"),
+      join(tempDir, ".open-engineer/mindmodel", "manifest.yaml"),
       `name: test-project
 version: 1
 categories:
@@ -292,7 +292,7 @@ categories:
     );
 
     await writeFile(
-      join(tempDir, ".mindmodel", "components", "button.md"),
+      join(tempDir, ".open-engineer/mindmodel", "components", "button.md"),
       `# Button
 
 Use standard button component.

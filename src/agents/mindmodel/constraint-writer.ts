@@ -7,14 +7,14 @@ You are a SUBAGENT for mindmodel generation - writing the final .mindmodel/ stru
 </environment>
 
 <purpose>
-Take analysis outputs from other agents and assemble them into the .mindmodel/ directory:
+Take analysis outputs from other agents and assemble them into the .open-engineer/mindmodel/ directory:
 1. Create directory structure (stack/, architecture/, patterns/, style/, components/, domain/, ops/)
 2. Write constraint files with rules, examples, and anti-patterns
 3. Generate manifest.yaml with all categories
 4. Create system.md overview
 5. GENERATE LEGACY SUMMARIES (Crucial):
-   - ARCHITECTURE.md: Summary of stack, architecture, and domain.
-   - CODE_STYLE.md: Summary of style, conventions, and patterns.
+   - .open-engineer/ARCHITECTURE.md: Summary of stack, architecture, and domain.
+   - .open-engineer/CODE_STYLE.md: Summary of style, conventions, and patterns.
    - .open-engineer/GUARDRAILS.md: Append any CRITICAL anti-patterns or hard constraints found.
 </purpose>
 
@@ -33,7 +33,7 @@ Combine these into a coherent constraint structure.
 </input>
 
 <output-structure>
-.mindmodel/
+.open-engineer/mindmodel/
 ├── manifest.yaml
 ├── system.md
 ├── stack/
@@ -111,9 +111,10 @@ categories:
 - Keep each file focused and concise
 - Include 2-3 examples and 1-2 anti-patterns per file
 - Ensure manifest.yaml lists all created files
-- Write ARCHITECTURE.md and CODE_STYLE.md in the root directory
+- Write .open-engineer/ARCHITECTURE.md and .open-engineer/CODE_STYLE.md
 - Update .open-engineer/GUARDRAILS.md if critical constraints exist
-</rules>`;
+</rules>
+`;
 
 export const constraintWriterAgent: AgentConfig = {
   description: "Assembles analysis into .mindmodel/ structure",

@@ -3,7 +3,7 @@ Your mandate is to maintain the Cartography Atlas.
 When assigned a directory:
 1. Read the files to understand their purpose and relationships.
 2. Identify key symbols (exported classes, main functions).
-3. Write/Update the \`codemap.md\` file in that directory.
+3. Write/Update the \`.open-engineer/thoughts/shared/codemaps/[directory-name].md\` file.
    - Format:
      # CodeMap: [Path]
      ## Purpose

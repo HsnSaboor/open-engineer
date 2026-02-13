@@ -18,7 +18,7 @@ describe("mindmodel loader", () => {
   });
 
   it("should load mindmodel from .mindmodel directory", async () => {
-    const mindmodelDir = join(testDir, ".mindmodel");
+    const mindmodelDir = join(testDir, ".open-engineer/mindmodel");
     mkdirSync(mindmodelDir, { recursive: true });
 
     writeFileSync(
@@ -49,7 +49,7 @@ categories:
   });
 
   it("should load examples for specified categories", async () => {
-    const mindmodelDir = join(testDir, ".mindmodel");
+    const mindmodelDir = join(testDir, ".open-engineer/mindmodel");
     mkdirSync(join(mindmodelDir, "components"), { recursive: true });
     mkdirSync(join(mindmodelDir, "patterns"), { recursive: true });
 
@@ -81,7 +81,7 @@ categories:
   });
 
   it("should return null when manifest has invalid content", async () => {
-    const mindmodelDir = join(testDir, ".mindmodel");
+    const mindmodelDir = join(testDir, ".open-engineer/mindmodel");
     mkdirSync(mindmodelDir, { recursive: true });
 
     writeFileSync(
@@ -97,7 +97,7 @@ categories: []
   });
 
   it("should skip gracefully when loading examples with non-existent category path", async () => {
-    const mindmodelDir = join(testDir, ".mindmodel");
+    const mindmodelDir = join(testDir, ".open-engineer/mindmodel");
     mkdirSync(join(mindmodelDir, "components"), { recursive: true });
 
     writeFileSync(

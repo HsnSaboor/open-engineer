@@ -9,11 +9,11 @@ describe("ledger-loader", () => {
 
   beforeEach(() => {
     testDir = join(tmpdir(), `ledger-test-${Date.now()}`);
-    mkdirSync(join(testDir, "thoughts", "ledgers"), { recursive: true });
+    mkdirSync(join(testDir, ".open-engineer", "thoughts", "ledgers"), { recursive: true });
   });
 
-  it("should find ledger files in thoughts/ledgers/", async () => {
-    const ledgerPath = join(testDir, "thoughts", "ledgers", "CONTINUITY_test-session.md");
+  it("should find ledger files in .open-engineer/thoughts/ledgers/", async () => {
+    const ledgerPath = join(testDir, ".open-engineer", "thoughts", "ledgers", "CONTINUITY_test-session.md");
     writeFileSync(ledgerPath, "# Session: test-session\n\n## Goal\nTest goal");
 
     const { findCurrentLedger } = await import("../../src/hooks/ledger-loader");

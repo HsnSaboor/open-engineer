@@ -180,12 +180,12 @@ async function logOverride(projectDir: string, reason: string): Promise<void> {
   const { appendFile, mkdir } = await import("node:fs/promises");
   const { join } = await import("node:path");
 
-  const logPath = join(projectDir, ".mindmodel", config.mindmodel.overrideLogFile);
+  const logPath = join(projectDir, config.paths.mindmodelDir, config.mindmodel.overrideLogFile);
   const timestamp = new Date().toISOString();
   const entry = `${timestamp} | override | reason: "${reason}"\n`;
 
   try {
-    await mkdir(join(projectDir, ".mindmodel"), { recursive: true });
+    await mkdir(join(projectDir, config.paths.mindmodelDir), { recursive: true });
     await appendFile(logPath, entry);
   } catch {
     // Ignore logging failures

@@ -26,7 +26,7 @@ describe("mindmodel-injector hook", () => {
   }
 
   function setupMindmodel(dir: string) {
-    const mindmodelDir = join(dir, ".mindmodel");
+    const mindmodelDir = join(dir, ".open-engineer/mindmodel");
     mkdirSync(join(mindmodelDir, "components"), { recursive: true });
 
     writeFileSync(

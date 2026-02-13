@@ -25,13 +25,12 @@ export class GsdSpecManager {
   }
 
   public async ensureSpecDirs() {
-    await mkdir(join(this.rootDir, ".planning"), { recursive: true });
-    await mkdir(join(this.rootDir, ".specs"), { recursive: true }); // Storing specs in root or .specs? Spec says root mostly.
-    // Spec says PROJECT.md, REQUIREMENTS.md, ROADMAP.md usually at root.
+    await mkdir(join(this.rootDir, ".open-engineer/.planning"), { recursive: true });
+    await mkdir(join(this.rootDir, ".open-engineer/.specs"), { recursive: true });
   }
 
   public async getProjectSpec(): Promise<ProjectSpec | null> {
-    const path = join(this.rootDir, "PROJECT.md");
+    const path = join(this.rootDir, ".open-engineer/PROJECT.md");
     if (!existsSync(path)) return null;
 
     // Simple parsing for now - in reality would be more robust markdown parsing
@@ -56,7 +55,7 @@ The single most important feature.
 ## Stack
 - Key libraries and versions.
 `;
-    await writeFile(join(this.rootDir, "PROJECT.md"), content);
+    await writeFile(join(this.rootDir, ".open-engineer/PROJECT.md"), content);
   }
 
   public async createRequirementsTemplate() {
@@ -66,7 +65,7 @@ The single most important feature.
 |:---|:---|:---|:---|:---|
 | R1 | [Requirement Description] | Must | 1 | [ ] |
 `;
-    await writeFile(join(this.rootDir, "REQUIREMENTS.md"), content);
+    await writeFile(join(this.rootDir, ".open-engineer/REQUIREMENTS.md"), content);
   }
 
   public async createRoadmapTemplate() {
@@ -77,16 +76,16 @@ The single most important feature.
 
 ## Phase 2: MVP
 `;
-    await writeFile(join(this.rootDir, "ROADMAP.md"), content);
+    await writeFile(join(this.rootDir, ".open-engineer/ROADMAP.md"), content);
   }
 
   public async savePlan(phase: number, xmlContent: string) {
-    const path = join(this.rootDir, ".planning", `phase-${phase}.xml`);
+    const path = join(this.rootDir, ".open-engineer/.planning", `phase-${phase}.xml`);
     await writeFile(path, xmlContent);
   }
 
   public async readPlan(phase: number): Promise<string | null> {
-    const path = join(this.rootDir, ".planning", `phase-${phase}.xml`);
+    const path = join(this.rootDir, ".open-engineer/.planning", `phase-${phase}.xml`);
     if (existsSync(path)) {
       return await readFile(path, "utf-8");
     }

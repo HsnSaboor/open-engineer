@@ -26,7 +26,7 @@ describe("createConstraintReviewerHook", () => {
   }
 
   function setupMindmodel(dir: string) {
-    const mindmodelDir = join(dir, ".mindmodel");
+    const mindmodelDir = join(dir, ".open-engineer/mindmodel");
     mkdirSync(mindmodelDir, { recursive: true });
 
     writeFileSync(
