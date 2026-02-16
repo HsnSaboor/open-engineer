@@ -32,7 +32,7 @@ export class SwarmManager {
     }
     this.parentToChildren.get(parentID)!.add(sessionID);
 
-    this.updateStatusBoard(parentID);
+    this.updateStatusBoard(parentID).catch(() => {});
   }
 
   async updateProgress(sessionID: string, update: Partial<AgentProgress>) {
@@ -41,11 +41,10 @@ export class SwarmManager {
       const oldStatus = progress.status;
       Object.assign(progress, { ...update, updatedAt: new Date() });
 
-      // Find parent to update dashboard
       const parentID = this.getParentID(sessionID);
       if (parentID) {
         if (update.status && update.status !== oldStatus) {
-          this.updateStatusBoard(parentID);
+          await this.updateStatusBoard(parentID);
         }
       }
     }
@@ -116,7 +115,7 @@ export class SwarmManager {
     for (const [parent, children] of this.parentToChildren.entries()) {
       if (children.delete(sessionID)) {
         if (children.size === 0) this.parentToChildren.delete(parent);
-        this.updateStatusBoard(parent);
+        this.updateStatusBoard(parent).catch(() => {});
         break;
       }
     }

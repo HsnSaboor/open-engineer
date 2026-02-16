@@ -248,6 +248,11 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
     "tool.execute.before": async (input, output) => {
       if (isSessionBuiltin(input.sessionID)) {
+        if (input.tool === "spawn_agent" || input.tool === "wait_for_agents") {
+          throw new Error(
+            `Tool '${input.tool}' is not available for built-in OpenCode agents. Use the native Task tool instead.`,
+          );
+        }
         return;
       }
 
@@ -279,8 +284,7 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         }
       }
 
-      const result = await worktreeModeHook["tool.execute.before"]?.(input, { args: output.args || {} });
-      if (result?.error) throw new Error(result.error);
+      await worktreeModeHook["tool.execute.before"]?.(input, { args: output.args || {} });
     },
 
     "tool.execute.after": async (input, output) => {

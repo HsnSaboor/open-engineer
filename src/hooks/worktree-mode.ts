@@ -263,11 +263,11 @@ You MUST use the native Task tool for parallel delegation:
     "tool.execute.before": async (
       input: { tool: string; sessionID: string; callID: string },
       output: { args: Record<string, string | number | boolean | null | undefined | object> },
-    ): Promise<{ error?: string }> => {
+    ): Promise<void> => {
       const state = await getSessionState(input.sessionID);
       const toolName = input.tool.toLowerCase();
 
-      if (!["write", "edit", "bash"].includes(toolName)) return { error: undefined };
+      if (!["write", "edit", "bash"].includes(toolName)) return;
 
       if (state.mode === WORKTREE_MODE.ON) {
         const filePath = (output.args?.filePath || output.args?.path) as string | undefined;
@@ -277,17 +277,17 @@ You MUST use the native Task tool for parallel delegation:
           const worktreePath = state.worktreePath;
           if (worktreePath) {
             if (command.includes(".git") || command.includes(".opencode") || command.includes("inspo")) {
-              return { error: `[S-TIER ENFORCEMENT ERROR] Command contains forbidden paths: ${command}` };
+              throw new Error(`[S-TIER ENFORCEMENT ERROR] Command contains forbidden paths: ${command}`);
             }
           }
         }
 
-        if (!filePath) return { error: undefined };
+        if (!filePath) return;
 
         const pathValidation = isValidPath(filePath);
         if (!pathValidation.valid) {
           log.warn("worktree-mode", `Path validation failed: ${pathValidation.reason}`);
-          return { error: `[S-TIER ENFORCEMENT ERROR] Invalid path: ${pathValidation.reason}` };
+          throw new Error(`[S-TIER ENFORCEMENT ERROR] Invalid path: ${pathValidation.reason}`);
         }
 
         const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(ctx.directory, filePath);
@@ -297,27 +297,24 @@ You MUST use the native Task tool for parallel delegation:
           const worktreeValidation = isValidWorktreePath(worktreePath, ctx.directory);
           if (!worktreeValidation.valid) {
             log.warn("worktree-mode", `Worktree path validation failed: ${worktreeValidation.reason}`);
-            return { error: `[S-TIER ENFORCEMENT ERROR] Invalid worktree configuration: ${worktreeValidation.reason}` };
+            throw new Error(`[S-TIER ENFORCEMENT ERROR] Invalid worktree configuration: ${worktreeValidation.reason}`);
           }
 
           if (isParentRepoPath(absolutePath, worktreePath)) {
-            return {
-              error: `[S-TIER ENFORCEMENT ERROR] Modification attempted on parent repository while in Worktree Mode.\nPath: ${absolutePath}\nWorktree: ${worktreePath}\n\nParent repository files are protected in worktree mode.`,
-            };
+            throw new Error(
+              `[S-TIER ENFORCEMENT ERROR] Modification attempted on parent repository while in Worktree Mode.\nPath: ${absolutePath}\nWorktree: ${worktreePath}\n\nParent repository files are protected in worktree mode.`,
+            );
           }
 
           if (!absolutePath.startsWith(worktreePath)) {
-            return {
-              error: `[S-TIER ENFORCEMENT ERROR] Modification attempted outside of active worktree.\nPath: ${absolutePath}\nWorktree: ${worktreePath}`,
-            };
+            throw new Error(
+              `[S-TIER ENFORCEMENT ERROR] Modification attempted outside of active worktree.\nPath: ${absolutePath}\nWorktree: ${worktreePath}`,
+            );
           }
         } else {
-          return {
-            error: `[S-TIER ENFORCEMENT ERROR] Worktree Mode is ENABLED but no active worktree root detected.`,
-          };
+          throw new Error(`[S-TIER ENFORCEMENT ERROR] Worktree Mode is ENABLED but no active worktree root detected.`);
         }
       }
-      return { error: undefined };
     },
 
     cleanupSession: (sessionID: string) => {
