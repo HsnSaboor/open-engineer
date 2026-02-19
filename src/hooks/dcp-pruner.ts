@@ -56,5 +56,9 @@ export function createDcpPrunerHook(ctx: PluginInput, userConfig: MicodeConfig |
         output.system.push(injection);
       }
     },
+
+    cleanup(sessionID: string) {
+      historyMaps.delete(sessionID);
+    },
   };
 }

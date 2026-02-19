@@ -1,6 +1,7 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 
 import type { LspManager } from "../tools/lsp";
+import { getFileOps } from "./file-ops-tracker";
 
 interface TodoItem {
   id: string;
@@ -27,8 +28,8 @@ export class EnforcerManager {
     return items.filter((t) => t.status === "pending" || t.status === "in_progress");
   }
 
-  public getLspErrors(): string {
-    return this.lspManager.getErrors();
+  public getLspErrors(filterPaths?: Set<string>): string {
+    return this.lspManager.getErrors(filterPaths);
   }
 
   public cleanupSession(sessionID: string) {
@@ -46,11 +47,16 @@ export function createEnforcerHooks(_ctx: PluginInput, lspManager: LspManager) {
 
     "experimental.chat.system.transform": async (input: { sessionID: string }, output: { system: string[] }) => {
       // 1. Quality Gate (LSP)
-      const errors = manager.getLspErrors();
+      // Get relevant files for this session (modified + read)
+      const ops = getFileOps(input.sessionID);
+      const relevantFiles = new Set([...ops.modified, ...ops.read]);
+
+      // If no files touched, don't show any errors (prevents noise from other sessions)
+      const errors = manager.getLspErrors(relevantFiles);
       let injection = "";
 
       if (errors) {
-        injection += `\n\n<quality-gate>\nCRITICAL: You have active LSP errors. You MUST fix them before proceeding.\n${errors}\n</quality-gate>`;
+        injection += `\n\n<quality-gate>\nCRITICAL: You have active LSP errors in files you are working on. You MUST fix them before proceeding.\n${errors}\n</quality-gate>`;
       }
 
       // 2. Continuation Enforcer (Todos)

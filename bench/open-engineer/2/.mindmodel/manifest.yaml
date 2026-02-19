@@ -1,9 +1,0 @@
-mindmodel:
-  version: "1.0"
-  files:
-    - path: ".mindmodel/system.md"
-      type: "architecture"
-    - path: ".mindmodel/style.md"
-      type: "conventions"
-    - path: ".mindmodel/patterns.md"
-      type: "patterns"

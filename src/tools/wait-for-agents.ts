@@ -41,7 +41,9 @@ This tool polls the status of the provided SessionIDs until they are all 'idle',
 
           for (const id of Array.from(pendingIDs)) {
             const status = statuses[id];
-            if (!status || status.type === "idle") {
+            // Only treat as complete if status exists AND is idle.
+            // Missing status (!status) means the session hasn't registered yet — keep waiting.
+            if (status && status.type === "idle") {
               pendingIDs.delete(id);
             }
           }
@@ -61,6 +63,12 @@ This tool polls the status of the provided SessionIDs until they are all 'idle',
             pollCount++;
 
             if (Date.now() - startTime > timeoutMs) {
+              // Clean up timed-out sessions from SwarmManager to prevent zombie entries
+              if (swarmManager) {
+                for (const id of pendingIDs) {
+                  swarmManager.cleanupSession(id);
+                }
+              }
               return `## wait_for_agents Timeout\n\nTimed out after ${timeoutMs}ms while waiting for: ${Array.from(
                 pendingIDs,
               ).join(", ")}`;

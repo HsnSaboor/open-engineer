@@ -36,12 +36,12 @@ function isParentRepoPath(filePath: string, worktreePath: string): boolean {
   const normalizedFile = path.normalize(filePath);
   const normalizedWorktree = path.normalize(worktreePath);
 
-  if (!normalizedFile.startsWith(normalizedWorktree)) {
+  if (!normalizedFile.startsWith(normalizedWorktree + path.sep) && normalizedFile !== normalizedWorktree) {
     return true;
   }
 
   const relativePath = normalizedFile.substring(normalizedWorktree.length);
-  if (relativePath.length === 0 || relativePath.startsWith("/")) {
+  if (relativePath.length === 0 || relativePath.startsWith(path.sep)) {
     return false;
   }
 
@@ -61,8 +61,9 @@ function isValidPath(inputPath: string): { valid: boolean; reason?: string } {
   if (inputPath.length > 4096) {
     return { valid: false, reason: "Path exceeds maximum length" };
   }
-  const normalized = path.normalize(inputPath);
-  if (normalized.includes("..") || inputPath.includes("../") || inputPath.includes("..\\")) {
+  // Check the RAW input for traversal BEFORE normalizing (normalize strips ".." segments)
+  const segments = inputPath.split(path.sep);
+  if (segments.some((s) => s === "..")) {
     return { valid: false, reason: "Path contains traversal sequence (..)" };
   }
   if (inputPath.includes("//")) {
@@ -92,6 +93,9 @@ export function createWorktreeModeHook(ctx: PluginInput) {
     global: null as WorktreeMode | null,
     project: null as WorktreeMode | null,
   };
+
+  // Optional parent resolver — set via setParentResolver after SwarmManager is created
+  let parentResolver: ((sessionID: string) => string | undefined) | null = null;
 
   async function loadConfigMode(configPath: string, source: string): Promise<WorktreeMode> {
     try {
@@ -144,6 +148,41 @@ export function createWorktreeModeHook(ctx: PluginInput) {
   }
 
   return {
+    setParentResolver: (resolver: (sessionID: string) => string | undefined) => {
+      parentResolver = resolver;
+    },
+
+    /**
+     * Get the effective worktree mode for a session, walking up the parent chain.
+     * If any ancestor has mode OFF (user override), the child inherits OFF.
+     * This ensures @worktree:off propagates to Task-tool subagent sessions.
+     */
+    getEffectiveMode: (sessionID: string): WorktreeMode => {
+      const directMode = sessionStates.get(sessionID)?.mode;
+      if (directMode === WORKTREE_MODE.OFF || directMode === WORKTREE_MODE.ON) {
+        return directMode;
+      }
+
+      // Walk up the parent chain to find an ancestor with explicit override
+      if (parentResolver) {
+        let currentID: string | undefined = sessionID;
+        const visited = new Set<string>();
+        while (currentID) {
+          if (visited.has(currentID)) break; // prevent cycles
+          visited.add(currentID);
+          const parentID = parentResolver(currentID);
+          if (!parentID) break;
+          const parentState = sessionStates.get(parentID);
+          if (parentState?.userOverridden) {
+            return parentState.mode;
+          }
+          currentID = parentID;
+        }
+      }
+
+      return directMode ?? WORKTREE_MODE.AUTO;
+    },
+
     setMode: async (sessionID: string, mode: WorktreeMode) => {
       const state = await getSessionState(sessionID);
       state.mode = mode;
@@ -306,7 +345,7 @@ You MUST use the native Task tool for parallel delegation:
             );
           }
 
-          if (!absolutePath.startsWith(worktreePath)) {
+          if (absolutePath !== worktreePath && !absolutePath.startsWith(worktreePath + path.sep)) {
             throw new Error(
               `[S-TIER ENFORCEMENT ERROR] Modification attempted outside of active worktree.\nPath: ${absolutePath}\nWorktree: ${worktreePath}`,
             );

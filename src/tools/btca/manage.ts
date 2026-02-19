@@ -1,4 +1,4 @@
-import { $ } from "bun";
+import { $, which } from "bun";
 
 import { type ToolContext, tool } from "@opencode-ai/plugin/tool";
 
@@ -84,9 +84,25 @@ export const btca_resource_list = tool({
     try {
       const result = await $`btca config resources list`.nothrow().quiet();
       if (result.exitCode !== 0) {
-        return "Failed to list resources. Is 'btca' installed?";
+        // Distinguish "btca not installed" from "no resources configured"
+        const btcaPath = which("btca");
+        if (!btcaPath) {
+          return "Failed to list resources. 'btca' is not installed. Install with: bun install -g @anthropic/btca";
+        }
+        // btca is installed but returned non-zero (e.g. empty resources list)
+        const stderr = result.stderr.toString().trim();
+        const stdout = result.stdout.toString().trim();
+        if (!stdout && !stderr) {
+          return "No resources configured. Use btca_resource_add to register a local directory.";
+        }
+        // If there's stderr output, include it for debugging
+        return `No resources configured.${stderr ? ` (btca: ${stderr})` : ""}\nUse btca_resource_add to register a local directory.`;
       }
-      return result.stdout.toString();
+      const output = result.stdout.toString().trim();
+      if (!output) {
+        return "No resources configured. Use btca_resource_add to register a local directory.";
+      }
+      return output;
     } catch (error) {
       return `Error listing resources: ${error}`;
     }

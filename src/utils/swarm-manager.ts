@@ -10,16 +10,25 @@ export interface AgentProgress {
   updatedAt: Date;
 }
 
+const MAX_ACTIVE_AGENTS = 100;
+
 export class SwarmManager {
   private activeAgents = new Map<string, AgentProgress>();
   private parentToChildren = new Map<string, Set<string>>();
+  private childToParent = new Map<string, string>(); // reverse lookup for O(1) getParentID
   private ctx: PluginInput;
+  private updating = false; // simple busy flag to prevent concurrent mutations
 
   constructor(ctx: PluginInput) {
     this.ctx = ctx;
   }
 
   registerSubagent(sessionID: string, parentID: string, agentName: string, taskDescription: string) {
+    // Enforce bounds
+    if (this.activeAgents.size >= MAX_ACTIVE_AGENTS) {
+      throw new Error(`SwarmManager: active agent limit reached (${MAX_ACTIVE_AGENTS})`);
+    }
+
     this.activeAgents.set(sessionID, {
       agentName,
       taskDescription,
@@ -31,6 +40,7 @@ export class SwarmManager {
       this.parentToChildren.set(parentID, new Set());
     }
     this.parentToChildren.get(parentID)!.add(sessionID);
+    this.childToParent.set(sessionID, parentID);
 
     this.updateStatusBoard(parentID).catch(() => {});
   }
@@ -41,7 +51,7 @@ export class SwarmManager {
       const oldStatus = progress.status;
       Object.assign(progress, { ...update, updatedAt: new Date() });
 
-      const parentID = this.getParentID(sessionID);
+      const parentID = this.childToParent.get(sessionID);
       if (parentID) {
         if (update.status && update.status !== oldStatus) {
           await this.updateStatusBoard(parentID);
@@ -62,14 +72,14 @@ export class SwarmManager {
     const idle = children.filter((c) => c.status === "idle").length;
     const error = children.filter((c) => c.status === "error").length;
 
-    return `🐝 Swarm: ${busy} Busy, ${idle} Done${error > 0 ? `, ${error} Error` : ""}`;
+    return `Swarm: ${busy} Busy, ${idle} Done${error > 0 ? `, ${error} Error` : ""}`;
   }
 
   getSwarmDashboard(parentID: string): string {
     const childrenIDs = this.parentToChildren.get(parentID);
-    if (!childrenIDs || childrenIDs.size === 0) return "### 🐝 Swarm Status\nNo active subagents.";
+    if (!childrenIDs || childrenIDs.size === 0) return "### Swarm Status\nNo active subagents.";
 
-    let md = `### 🐝 Swarm Dashboard\n\n`;
+    let md = `### Swarm Dashboard\n\n`;
     md += "| Agent | Status | Current Task | Last Action |\n";
     md += "| :--- | :--- | :--- | :--- |\n";
 
@@ -77,7 +87,7 @@ export class SwarmManager {
     for (const childID of sortedChildren) {
       const p = this.activeAgents.get(childID);
       if (p) {
-        const statusIcon = p.status === "busy" || p.status === "running" ? "⏳" : p.status === "error" ? "❌" : "✅";
+        const statusIcon = p.status === "busy" || p.status === "running" ? "..." : p.status === "error" ? "X" : "OK";
         const toolInfo = p.lastTool ? `\`${p.lastTool}\`` : "Thinking...";
         md += `| ${p.agentName} | ${statusIcon} ${p.status} | ${p.taskDescription} | ${toolInfo} |\n`;
       }
@@ -86,45 +96,52 @@ export class SwarmManager {
   }
 
   async updateStatusBoard(parentID: string) {
-    const summary = this.getSwarmSummary(parentID);
-    await this.ctx.client.tui
-      .showToast({
-        body: {
-          title: "Swarm Status Update",
-          message: summary,
-          variant: "info",
-        },
-      })
-      .catch(() => {});
+    // Prevent concurrent board updates (simple coalescing)
+    if (this.updating) return;
+    this.updating = true;
 
-    // Post dashboard to chat for persistence
-    const dashboard = this.getSwarmDashboard(parentID);
-    await this.ctx.client.session
-      .prompt({
-        path: { id: parentID },
-        body: {
-          parts: [{ type: "text", text: dashboard }] as any,
-          noReply: true,
-        },
-      })
-      .catch(() => {});
+    try {
+      const summary = this.getSwarmSummary(parentID);
+      await this.ctx.client.tui
+        .showToast({
+          body: {
+            title: "Swarm Status Update",
+            message: summary,
+            variant: "info",
+          },
+        })
+        .catch(() => {});
+    } finally {
+      this.updating = false;
+    }
   }
 
   cleanupSession(sessionID: string) {
     this.activeAgents.delete(sessionID);
-    for (const [parent, children] of this.parentToChildren.entries()) {
-      if (children.delete(sessionID)) {
-        if (children.size === 0) this.parentToChildren.delete(parent);
-        this.updateStatusBoard(parent).catch(() => {});
-        break;
+
+    const parentID = this.childToParent.get(sessionID);
+    if (parentID) {
+      const children = this.parentToChildren.get(parentID);
+      if (children) {
+        children.delete(sessionID);
+        if (children.size === 0) this.parentToChildren.delete(parentID);
       }
+      this.childToParent.delete(sessionID);
+      this.updateStatusBoard(parentID).catch(() => {});
+    }
+
+    // Also clean up if this session was a parent
+    const ownChildren = this.parentToChildren.get(sessionID);
+    if (ownChildren) {
+      for (const childID of ownChildren) {
+        this.childToParent.delete(childID);
+        this.activeAgents.delete(childID);
+      }
+      this.parentToChildren.delete(sessionID);
     }
   }
 
   getParentID(sessionID: string): string | undefined {
-    for (const [parent, children] of this.parentToChildren.entries()) {
-      if (children.has(sessionID)) return parent;
-    }
-    return undefined;
+    return this.childToParent.get(sessionID);
   }
 }

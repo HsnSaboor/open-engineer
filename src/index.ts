@@ -16,8 +16,10 @@ import { createFileOpsTrackerHook, getFileOps } from "./hooks/file-ops-tracker";
 import { createLedgerLoaderHook } from "./hooks/ledger-loader";
 import { createMindmodelInjectorHook } from "./hooks/mindmodel-injector";
 import { createSessionRecoveryHook } from "./hooks/session-recovery";
+import { createSkillInjectorHook } from "./hooks/skill-injector";
 import { createTokenAwareTruncationHook } from "./hooks/token-aware-truncation";
 import { createWorktreeModeHook } from "./hooks/worktree-mode";
+import { SkillLoader } from "./skills/loader";
 import { artifact_search } from "./tools/artifact-search";
 import { ast_grep_replace, ast_grep_search, checkAstGrepAvailable } from "./tools/ast-grep";
 import { btca_ask, checkBtcaAvailable } from "./tools/btca";
@@ -62,6 +64,12 @@ function getTextFromParts(parts: Part[]): string {
     .join(" ");
 }
 
+interface CustomHook {
+  [key: string]: ((...args: any[]) => any) | undefined;
+  cleanup?: (sessionID: string) => void;
+  cleanupSession?: (sessionID: string) => void;
+}
+
 const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   setLoggerClient(ctx.client);
 
@@ -79,37 +87,34 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
   const userConfig = await loadMicodeConfig();
   const thinkModeState = new Map<string, boolean>();
   const toolCallArgs = new Map<string, Record<string, unknown>>();
+  const TOOL_CALL_ARGS_MAX = 500;
   const internalSessions = new Set<string>();
 
   const lspManager = new LspManager();
   const ptyManager = new PTYManager();
   const swarmManager = new SwarmManager(ctx);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const autoCompactHook: any = createAutoCompactHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contextInjectorHook: any = createContextInjectorHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ledgerLoaderHook: any = createLedgerLoaderHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sessionRecoveryHook: any = createSessionRecoveryHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tokenAwareTruncationHook: any = createTokenAwareTruncationHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const contextWindowMonitorHook: any = createContextWindowMonitorHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commentCheckerHook: any = createCommentCheckerHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const artifactAutoIndexHook: any = createArtifactAutoIndexHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fileOpsTrackerHook: any = createFileOpsTrackerHook(ctx);
+  const skillLoader = new SkillLoader(ctx.directory, userConfig?.skillMatcher);
+  await skillLoader.init();
+
+  const autoCompactHook: CustomHook = createAutoCompactHook(ctx);
+  const contextInjectorHook: CustomHook = createContextInjectorHook(ctx);
+  const ledgerLoaderHook: CustomHook = createLedgerLoaderHook(ctx);
+  const sessionRecoveryHook: CustomHook = createSessionRecoveryHook(ctx);
+  const tokenAwareTruncationHook: CustomHook = createTokenAwareTruncationHook(ctx);
+  const contextWindowMonitorHook: CustomHook = createContextWindowMonitorHook(ctx);
+  const commentCheckerHook: CustomHook = createCommentCheckerHook(ctx);
+  const artifactAutoIndexHook: CustomHook = createArtifactAutoIndexHook(ctx);
+  const fileOpsTrackerHook: CustomHook = createFileOpsTrackerHook(ctx);
   const worktreeModeHook = createWorktreeModeHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dcpPrunerHook: any = createDcpPrunerHook(ctx, userConfig);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cartographerHook: any = createCartographerHook(ctx);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const enforcerHooks: any = createEnforcerHooks(ctx, lspManager);
+  const dcpPrunerHook: CustomHook = createDcpPrunerHook(ctx, userConfig);
+
+  // Wire parent resolver so worktree mode propagates from commander to subagent sessions
+  worktreeModeHook.setParentResolver((sessionID: string) => swarmManager.getParentID(sessionID));
+  const cartographerHook: CustomHook = createCartographerHook(ctx);
+  const enforcerHooks: CustomHook = createEnforcerHooks(ctx, lspManager);
+
+  const skillInjectorHook = createSkillInjectorHook(ctx, skillLoader);
 
   const mindmodelClassifyFn = (classifierPrompt: string, parentSessionID?: string) =>
     runInternalPrompt(ctx, {
@@ -120,11 +125,9 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
       fallbackResponse: "[]",
     });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mindmodelInjectorHook: any = createMindmodelInjectorHook(ctx, mindmodelClassifyFn);
+  const mindmodelInjectorHook: CustomHook = createMindmodelInjectorHook(ctx, mindmodelClassifyFn);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const constraintReviewerHook: any = createConstraintReviewerHook(ctx, (reviewPrompt, parentSessionID) =>
+  const constraintReviewerHook: CustomHook = createConstraintReviewerHook(ctx, (reviewPrompt, parentSessionID) =>
     runInternalPrompt(ctx, {
       title: "constraint-reviewer",
       prompt: reviewPrompt,
@@ -222,7 +225,10 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
 
       await worktreeModeHook.detectWorktreeTrigger(input, { parts });
       thinkModeState.set(input.sessionID, detectThinkKeyword(text));
-      await constraintReviewerHook["chat.message"]?.(input, output);
+      await Promise.all([
+        constraintReviewerHook["chat.message"]?.(input, output),
+        skillInjectorHook["chat.message"]?.(input, output),
+      ]);
     },
 
     "chat.params": async (input, output) => {
@@ -256,7 +262,26 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         return;
       }
 
-      if (input.callID && output.args) toolCallArgs.set(input.callID, output.args);
+      // Block spawn_agent/wait_for_agents when effective worktree mode is OFF
+      // This handles the runtime @worktree:off case where executor agent config
+      // still has spawn_agent: true but the commander's session has worktree OFF
+      if (input.tool === "spawn_agent" || input.tool === "wait_for_agents") {
+        const effectiveMode = worktreeModeHook.getEffectiveMode(input.sessionID);
+        if (effectiveMode === "OFF") {
+          throw new Error(
+            `Tool '${input.tool}' is not available when worktree mode is OFF. Use the native Task tool instead for parallel delegation.`,
+          );
+        }
+      }
+
+      if (input.callID && output.args) {
+        // Enforce bounds on toolCallArgs to prevent unbounded growth
+        if (toolCallArgs.size >= TOOL_CALL_ARGS_MAX) {
+          const firstKey = toolCallArgs.keys().next().value;
+          if (firstKey) toolCallArgs.delete(firstKey);
+        }
+        toolCallArgs.set(input.callID, output.args);
+      }
 
       if (userConfig?.ui?.showStatusBoard !== false) {
         const parentID = swarmManager.getParentID(input.sessionID);
@@ -315,10 +340,10 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         return;
       }
 
-      await Promise.all([
-        dcpPrunerHook["experimental.chat.messages.transform"]?.(input, output),
-        mindmodelInjectorHook["experimental.chat.messages.transform"]?.(input, output),
-      ]);
+      // SEQUENTIAL: Both hooks mutate output.messages — running in parallel causes TOCTOU races.
+      // DCP pruner replaces output.messages entirely; mindmodel injector reads/modifies it.
+      await dcpPrunerHook["experimental.chat.messages.transform"]?.(input, output);
+      await mindmodelInjectorHook["experimental.chat.messages.transform"]?.(input, output);
     },
 
     "experimental.chat.system.transform": async (input, output) => {
@@ -334,11 +359,31 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
         contextInjectorHook["experimental.chat.system.transform"]?.(input, output),
         enforcerHooks["experimental.chat.system.transform"]?.(input, output),
         contextWindowMonitorHook["experimental.chat.system.transform"]?.(input, output),
+        skillInjectorHook["experimental.chat.system.transform"]?.(input, output),
       ]);
 
-      if (input.sessionID && worktreeModeHook.getMode(input.sessionID) === "AUTO") {
+      if (input.sessionID) {
+        // Use getEffectiveMode which walks the parent chain to inherit @worktree:off
+        // from commander sessions into Task-tool subagent sessions
+        const effectiveMode = worktreeModeHook.getEffectiveMode(input.sessionID);
         output.system = output.system || [];
-        output.system.push(`[SYSTEM]: Worktree Mode is AUTO. Use native 'question' tool for Sandbox decision.`);
+
+        if (effectiveMode === "AUTO") {
+          output.system.push(`[SYSTEM]: Worktree Mode is AUTO. Use native 'question' tool for Sandbox decision.`);
+        } else if (effectiveMode === "OFF") {
+          // Inject delegation instructions for subagents that inherit OFF from parent
+          const instructions = worktreeModeHook.getDelegationInstructions(input.sessionID);
+          if (!instructions) {
+            // If no direct state exists (subagent session), generate OFF-mode instructions
+            output.system.push(
+              `[SYSTEM]: Worktree Mode is DISABLED (inherited from parent session). ` +
+                `You MUST use the native Task tool for parallel delegation. ` +
+                `Do NOT use spawn_agent or wait_for_agents — they are blocked in this mode.`,
+            );
+          } else {
+            output.system.push(instructions);
+          }
+        }
       }
     },
 
@@ -354,6 +399,9 @@ const openCodeConfigPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> =>
           mindmodelInjectorHook.cleanupSession?.(id);
           enforcerHooks.cleanupSession?.(id);
           worktreeModeHook.cleanupSession(id);
+          skillInjectorHook.cleanup(id);
+          dcpPrunerHook.cleanup?.(id);
+          internalSessions.delete(id);
           cleanupAgentSession(id);
         }
       }

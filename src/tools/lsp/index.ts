@@ -17,9 +17,10 @@ export class LspManager {
 
   public handleEvent(event: Event) {
     if (event.type === "lsp.client.diagnostics") {
-      const properties = event.properties as { serverID?: string; path?: string };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const properties = event.properties as { serverID?: string; path?: string; diagnostics?: any[] };
       if (!properties?.path) return;
-      this.diagnostics.set(properties.path, []);
+      this.diagnostics.set(properties.path, properties.diagnostics || []);
     }
   }
 
@@ -42,9 +43,12 @@ export class LspManager {
     return output || "No diagnostics found in any file.";
   }
 
-  public getErrors(): string {
+  public getErrors(filterPaths?: Set<string>): string {
     let output = "";
     for (const [p, diags] of this.diagnostics.entries()) {
+      // Filter by path if provided
+      if (filterPaths && !filterPaths.has(p)) continue;
+
       const errors = diags.filter((d) => d.severity === 1);
       if (errors.length > 0) {
         output += `${this.formatDiagnostics(p, errors)}\n`;

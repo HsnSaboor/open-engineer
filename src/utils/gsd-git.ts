@@ -44,10 +44,18 @@ export class GitAtomicManager {
     verifyCmd: string,
   ): Promise<{ success: boolean; message?: string }> {
     try {
-      // Run verification command
-      // We use 'bun' to run shell commands essentially, or direct execution
-      // Simplest is to run via sh -c
-      const verifyProc = spawn(["sh", "-c", verifyCmd], {
+      // Sanitize verify command — only allow simple test/build commands, block shell metacharacters
+      const ALLOWED_CMD_PATTERN = /^[\w\s./\-:@=,"']+$/;
+      if (!ALLOWED_CMD_PATTERN.test(verifyCmd)) {
+        return {
+          success: false,
+          message: `Verification command rejected: contains potentially unsafe characters. Only alphanumeric, spaces, dots, slashes, hyphens, colons, and quotes are allowed.`,
+        };
+      }
+
+      // Split the command safely instead of using sh -c
+      const parts = verifyCmd.trim().split(/\s+/);
+      const verifyProc = spawn(parts, {
         cwd: this.rootDir,
         stdout: "pipe",
         stderr: "pipe",

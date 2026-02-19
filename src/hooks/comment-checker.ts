@@ -90,18 +90,23 @@ function analyzeComments(content: string): CommentIssue[] {
 
 export function createCommentCheckerHook(_ctx: PluginInput) {
   return {
-    // Check after file edits
+    // Check after file edits and writes
     "tool.execute.after": async (
       input: { tool: string; args?: Record<string, unknown> },
       output: { output?: string },
     ) => {
-      // Only check Edit tool
-      if (input.tool !== "Edit" && input.tool !== "edit") return;
+      // Check Edit tool (new_string) and Write tool (content)
+      if (input.tool !== "Edit" && input.tool !== "edit" && input.tool !== "Write" && input.tool !== "write") return;
 
-      const newString = input.args?.new_string as string | undefined;
-      if (!newString) return;
+      let contentToCheck: string | undefined;
+      if (input.tool === "Edit" || input.tool === "edit") {
+        contentToCheck = input.args?.new_string as string | undefined;
+      } else {
+        contentToCheck = input.args?.content as string | undefined;
+      }
+      if (!contentToCheck) return;
 
-      const issues = analyzeComments(newString);
+      const issues = analyzeComments(contentToCheck);
 
       if (issues.length > 0) {
         const warning = `\n\n⚠️ **Comment Check**: Found ${issues.length} potentially unnecessary comment(s):\n${issues

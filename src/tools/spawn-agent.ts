@@ -1,6 +1,7 @@
 import type { PluginInput } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin/tool";
 
+import { agents } from "../agents";
 import { isSessionBuiltin } from "../utils/agent-tracker";
 import type { SwarmManager } from "../utils/swarm-manager";
 
@@ -27,6 +28,10 @@ interface SessionMessagesResponse {
   data?: SessionMessage[];
 }
 
+const MAX_CONCURRENT_AGENTS = 20;
+const MAX_SPAWN_DEPTH = 5;
+const activeSpawns = new Map<string, number>(); // parentID -> count
+
 export function createSpawnAgentTool(ctx: PluginInput, swarmManager?: SwarmManager) {
   return tool({
     description: `Spawn a subagent to execute a task asynchronously. The tool returns a sessionID immediately.
@@ -45,6 +50,29 @@ For parallel execution, call spawn_agent multiple times in ONE message, then use
       }
 
       const { agent, prompt, description } = args;
+
+      // Validate agent name against known registry
+      if (!agents[agent]) {
+        const availableAgents = Object.keys(agents).join(", ");
+        return `## spawn_agent Failed\n\n**Agent "${agent}" not found** in the agent registry.\n\nAvailable agents: ${availableAgents}`;
+      }
+
+      // Enforce concurrent agent limit
+      const currentCount = activeSpawns.get(context.sessionID) ?? 0;
+      if (currentCount >= MAX_CONCURRENT_AGENTS) {
+        return `## spawn_agent Failed\n\n**Concurrent agent limit reached** (${MAX_CONCURRENT_AGENTS}). Wait for existing agents to complete before spawning more.`;
+      }
+
+      // Enforce spawn depth limit (prevent recursive fork bombs)
+      let depth = 0;
+      let currentParent: string | undefined = context.sessionID;
+      while (currentParent && swarmManager) {
+        currentParent = swarmManager.getParentID(currentParent);
+        depth++;
+        if (depth > MAX_SPAWN_DEPTH) {
+          return `## spawn_agent Failed\n\n**Spawn depth limit reached** (${MAX_SPAWN_DEPTH}). Agents cannot recursively spawn beyond this depth.`;
+        }
+      }
 
       try {
         // Fetch parent session's last message to inherit the model
@@ -79,6 +107,9 @@ For parallel execution, call spawn_agent multiple times in ONE message, then use
         if (!sessionID) {
           return `## spawn_agent Failed\n\nFailed to create session for agent "${agent}"`;
         }
+
+        // Track active spawn count
+        activeSpawns.set(context.sessionID, currentCount + 1);
 
         // Register with swarm manager if provided
         if (swarmManager) {

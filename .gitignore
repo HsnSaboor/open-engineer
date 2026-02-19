@@ -20,12 +20,18 @@ yarn.lock
 # Worktrees
 .worktrees/
 
+# Benchmarks
+bench/
+
 # GitHub Workflows
 .github/
 
 # Open Engineer & OpenCode configs
 .open-engineer/
 .opencode/
+
+# Inspiration/reference codebases
+inspo/
 
 # Documentation and Plans
 docs/

@@ -27,6 +27,22 @@ export interface DcpConfig {
   protectedTools?: string[];
 }
 
+export interface LLMProviderConfig {
+  name?: string;
+  baseURL: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface SkillMatcherConfig {
+  model?: string;
+  threshold?: number;
+  maxResults?: number;
+  cacheResults?: boolean;
+  minConfidence?: number;
+  providers?: LLMProviderConfig[];
+}
+
 export interface MicodeConfig {
   agents?: Record<string, AgentOverride>;
   dcp?: DcpConfig;
@@ -35,6 +51,7 @@ export interface MicodeConfig {
     streamSubagentThoughts?: boolean;
     showStatusBoard?: boolean;
   };
+  skillMatcher?: SkillMatcherConfig;
 }
 
 const AgentOverrideSchema = v.object({
@@ -68,6 +85,25 @@ const MicodeConfigSchema = v.object({
     v.object({
       streamSubagentThoughts: v.optional(v.boolean()),
       showStatusBoard: v.optional(v.boolean()),
+    }),
+  ),
+  skillMatcher: v.optional(
+    v.object({
+      model: v.optional(v.string()),
+      threshold: v.optional(v.number()),
+      maxResults: v.optional(v.number()),
+      cacheResults: v.optional(v.boolean()),
+      minConfidence: v.optional(v.number()),
+      providers: v.optional(
+        v.array(
+          v.object({
+            name: v.optional(v.string()),
+            baseURL: v.string(),
+            apiKey: v.string(),
+            model: v.string(),
+          }),
+        ),
+      ),
     }),
   ),
 });
@@ -112,7 +148,9 @@ export async function loadMicodeConfig(configDir?: string): Promise<MicodeConfig
 
   try {
     const content = await readFile(configPath, "utf-8");
-    const parsed = parseYaml(content) as Record<string, unknown>;
+    // Substitute environment variables $VAR or ${VAR}
+    const substituted = content.replace(/\$\{?([A-Z0-9_]+)\}?/g, (_, key) => process.env[key] ?? "");
+    const parsed = parseYaml(substituted) as Record<string, unknown>;
 
     // Validate the config using valibot
     return v.parse(MicodeConfigSchema, parsed);

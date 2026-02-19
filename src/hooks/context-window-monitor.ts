@@ -63,8 +63,9 @@ export function createContextWindowMonitorHook(ctx: PluginInput) {
 
         const tokens = info.tokens as { input?: number; cache?: { read?: number } } | undefined;
         const inputTokens = tokens?.input || 0;
-        const cacheRead = tokens?.cache?.read || 0;
-        const totalUsed = inputTokens + cacheRead;
+        // NOTE: For Anthropic's API, `input` already includes cache hits.
+        // Do NOT add cache.read again — that double-counts and triggers premature compaction.
+        const totalUsed = inputTokens;
 
         const modelID = (info.modelID as string) || "";
         const contextLimit = getContextLimit(modelID);

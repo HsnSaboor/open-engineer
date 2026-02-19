@@ -228,7 +228,9 @@ ${summaryText}
 
         // Trigger compaction if over threshold
         if (usageRatio >= config.compaction.threshold) {
-          triggerCompaction(sessionID, providerID, modelID, usageRatio);
+          triggerCompaction(sessionID, providerID, modelID, usageRatio).catch((err) => {
+            log.error("auto-compact", "triggerCompaction failed", err instanceof Error ? err : new Error(String(err)));
+          });
         }
       }
     },

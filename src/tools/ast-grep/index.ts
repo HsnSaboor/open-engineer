@@ -3,22 +3,111 @@ import { spawn, which } from "bun";
 import { tool } from "@opencode-ai/plugin/tool";
 
 /**
+ * Known system paths where native package managers install binaries.
+ * These are preferred over user-local bun/npm/cargo installs because
+ * native binaries are more reliable (no postinstall shim issues).
+ */
+const SYSTEM_BIN_PREFIXES = ["/usr/bin/", "/usr/local/bin/", "/opt/homebrew/bin/", "/home/linuxbrew/.linuxbrew/bin/"];
+
+function isSystemPath(p: string): boolean {
+  return SYSTEM_BIN_PREFIXES.some((prefix) => p.startsWith(prefix));
+}
+
+/**
+ * Detect the native package manager available on this system.
+ * Returns a command to install ast-grep, or null if unknown.
+ */
+function detectNativeInstallCommand(): string | null {
+  if (which("pacman")) return "sudo pacman -S ast-grep";
+  if (which("apt")) return "sudo apt install ast-grep";
+  if (which("dnf")) return "sudo dnf install ast-grep";
+  if (which("brew")) return "brew install ast-grep";
+  if (which("zypper")) return "sudo zypper install ast-grep";
+  if (which("apk")) return "sudo apk add ast-grep";
+  if (which("nix-env")) return "nix-env -iA nixpkgs.ast-grep";
+  return null;
+}
+
+let _nativeInstallCmd: string | null | undefined;
+function getNativeInstallCommand(): string | null {
+  if (_nativeInstallCmd === undefined) {
+    _nativeInstallCmd = detectNativeInstallCommand();
+  }
+  return _nativeInstallCmd;
+}
+
+/**
+ * Resolve the ast-grep binary, preferring native system installs over bun/npm.
+ *
+ * Priority order:
+ * 1. Native system install of "ast-grep" (/usr/bin, /usr/local/bin, brew prefix)
+ * 2. Native system install of "sg" (same prefixes, excluding /usr/bin/sg which is Linux newgrp)
+ * 3. User-local "ast-grep" (bun, npm, cargo installs via PATH)
+ * 4. User-local "sg" (same, excluding /usr/bin/sg)
+ */
+let resolvedBinary: string | null = null;
+/** Exported for testing — resets the cached binary so resolution runs again. */
+export function _resetResolvedBinary(): void {
+  resolvedBinary = null;
+}
+
+export function resolveAstGrepBinary(): string | null {
+  if (resolvedBinary !== null) return resolvedBinary;
+
+  const astGrepPath = which("ast-grep");
+  const sgPath = which("sg");
+  // Filter out /usr/bin/sg — that's the Linux "set group" (newgrp) command, NOT ast-grep
+  const validSgPath = sgPath && sgPath !== "/usr/bin/sg" ? sgPath : null;
+
+  // 1. Prefer a native system install of "ast-grep"
+  if (astGrepPath && isSystemPath(astGrepPath)) {
+    resolvedBinary = astGrepPath;
+    return resolvedBinary;
+  }
+
+  // 2. Prefer a native system install of "sg"
+  if (validSgPath && isSystemPath(validSgPath)) {
+    resolvedBinary = validSgPath;
+    return resolvedBinary;
+  }
+
+  // 3. Fall back to user-local "ast-grep" (bun/npm/cargo)
+  if (astGrepPath) {
+    resolvedBinary = astGrepPath;
+    return resolvedBinary;
+  }
+
+  // 4. Fall back to user-local "sg"
+  if (validSgPath) {
+    resolvedBinary = validSgPath;
+    return resolvedBinary;
+  }
+
+  return null;
+}
+
+function buildInstallMessage(): string {
+  const nativeCmd = getNativeInstallCommand();
+  const lines = ["ast-grep CLI not found. AST-aware search/replace will not work.", "Install with one of:"];
+  if (nativeCmd) {
+    lines.push(`  ${nativeCmd}  (recommended)`);
+  }
+  lines.push("  npm install -g @ast-grep/cli", "  cargo install ast-grep --locked", "  brew install ast-grep");
+  return lines.join("\n");
+}
+
+/**
  * Check if ast-grep CLI (sg) is available on the system.
  * Returns installation instructions if not found.
  */
 export async function checkAstGrepAvailable(): Promise<{ available: boolean; message?: string }> {
-  const sgPath = which("ast-grep");
-  if (sgPath) {
+  const binary = resolveAstGrepBinary();
+  if (binary) {
     return { available: true };
   }
   return {
     available: false,
-    message:
-      "ast-grep CLI not found. AST-aware search/replace will not work.\n" +
-      "Install with one of:\n" +
-      "  npm install -g @ast-grep/cli\n" +
-      "  cargo install ast-grep --locked\n" +
-      "  brew install ast-grep",
+    message: buildInstallMessage(),
   };
 }
 
@@ -57,8 +146,16 @@ interface Match {
 }
 
 async function runSg(args: string[]): Promise<{ matches: Match[]; error?: string }> {
+  const binary = resolveAstGrepBinary();
+  if (!binary) {
+    return {
+      matches: [],
+      error: buildInstallMessage(),
+    };
+  }
+
   try {
-    const proc = spawn(["ast-grep", ...args], {
+    const proc = spawn([binary, ...args], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -89,11 +186,7 @@ async function runSg(args: string[]): Promise<{ matches: Match[]; error?: string
     if (err.message?.includes("ENOENT")) {
       return {
         matches: [],
-        error:
-          "ast-grep CLI not found. Install with:\n" +
-          "  npm install -g @ast-grep/cli\n" +
-          "  cargo install ast-grep --locked\n" +
-          "  brew install ast-grep",
+        error: buildInstallMessage(),
       };
     }
     return { matches: [], error: err.message };

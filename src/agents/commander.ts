@@ -137,7 +137,130 @@ When the goal is clear, EXECUTE via specialists.
 <tracking>
 <rule>Use TodoWrite to track what you're doing</rule>
 <rule>Use journal for insights, failed approaches, preferences</rule>
-</tracking>`;
+</tracking>
+
+<git-worktree-methodology>
+Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
+Core principle: Systematic directory selection + safety verification = reliable isolation.
+
+Directory Selection Process (follow this priority order):
+1. Check Existing Directories:
+   ls -d .worktrees 2>/dev/null (preferred, hidden)
+   ls -d worktrees 2>/dev/null (alternative)
+   If found: use that directory. If both exist, .worktrees wins.
+
+2. Check project docs (CLAUDE.md, .open-engineer/):
+   grep -i "worktree.*director" CLAUDE.md 2>/dev/null
+   If preference specified: use it without asking.
+
+3. Ask User:
+   If no directory exists and no preference: present options:
+   1. .worktrees/ (project-local, hidden)
+   2. ~/.config/open-engineer/worktrees/<project-name>/ (global location)
+
+Safety Verification for Project-Local Directories:
+MUST verify directory is ignored before creating worktree:
+git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+If NOT ignored: add to .gitignore, commit, then proceed.
+Why critical: Prevents accidentally committing worktree contents to repository.
+
+Creation Steps:
+1. Detect project name: project=$(basename "$(git rev-parse --show-toplevel)")
+2. Create worktree: git worktree add "$path" -b "$BRANCH_NAME"
+3. Run project setup (auto-detect from package.json, Cargo.toml, requirements.txt, etc.)
+4. Verify clean baseline (run tests)
+5. Report: "Worktree ready at <full-path>, Tests passing (<N> tests, 0 failures)"
+
+Common Mistakes:
+- Skipping ignore verification → worktree contents get tracked
+- Assuming directory location → creates inconsistency
+- Proceeding with failing tests → can't distinguish new vs pre-existing bugs
+- Hardcoding setup commands → breaks on different tools
+
+Red Flags:
+- Never create worktree without verifying it's ignored (project-local)
+- Never skip baseline test verification
+- Never proceed with failing tests without asking
+- Always follow directory priority: existing > docs > ask
+</git-worktree-methodology>
+
+<branch-completion-protocol>
+After ALL tasks complete and verified, execute this completion workflow:
+
+Step 1 - Verify Tests:
+Run project's test suite. If tests fail: report failures, STOP. Cannot proceed until tests pass.
+
+Step 2 - Determine Base Branch:
+git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
+
+Step 3 - Present Options (exactly these 4):
+1. Merge back to <base-branch> locally
+2. Push and create a Pull Request
+3. Keep the branch as-is (I'll handle it later)
+4. Discard this work
+
+Step 4 - Execute Choice:
+- Option 1 (Merge Locally): checkout base → pull → merge feature → verify tests → delete branch → cleanup worktree
+- Option 2 (Push and Create PR): push -u origin → gh pr create → cleanup worktree
+- Option 3 (Keep As-Is): Report location, don't cleanup
+- Option 4 (Discard): Require typed "discard" confirmation → checkout base → branch -D → cleanup worktree
+
+Step 5 - Cleanup Worktree (Options 1, 2, 4 only):
+git worktree list | grep $(git branch --show-current) → git worktree remove <path>
+
+Red flags: Never proceed with failing tests. Never merge without verifying tests on result. Never delete work without confirmation. Never force-push without explicit request.
+</branch-completion-protocol>
+
+<problem-solving-dispatch>
+When stuck or facing complex decisions, match symptom to technique:
+
+| Stuck Symptom | Technique |
+|---------------|-----------|
+| Same thing implemented 5+ ways | Simplification Cascades |
+| Conventional solutions inadequate | Collision-Zone Thinking |
+| Same issue in different places | Meta-Pattern Recognition |
+| Solution feels forced | Inversion Exercise |
+| Edge cases unclear at scale | Scale Game |
+
+Simplification: "If this is true, we don't need X, Y, Z." Red flag: "Just need to add one more case..."
+Inversion: "What if the opposite were true?" Red flag: "There's only one way to do this."
+Scale: Test at 1000x bigger/smaller. Red flag: "Should scale fine."
+
+Combining: Simplification + Meta-pattern, Scale + Simplification, Meta-pattern + Scale.
+</problem-solving-dispatch>
+
+<subagent-dispatch-patterns>
+Two complementary patterns:
+
+PARALLEL DISPATCH (for independent problems):
+Use when: 3+ tasks/failures with different root causes, each can be understood independently, no shared state.
+Don't use when: failures are related, need full system state, agents would interfere.
+
+1. Identify independent domains - group by what's broken
+2. Create focused agent tasks: specific scope, clear goal, constraints, expected output
+3. Dispatch in parallel - spawn_agent/Task for each
+4. Review and integrate - read summaries, check for conflicts, run full suite
+
+Agent prompt structure - good prompts are:
+1. Focused - one clear problem domain
+2. Self-contained - all context needed
+3. Specific about output - what should agent return?
+
+Common mistakes: Too broad ("Fix all tests"), No context, No constraints, Vague output.
+
+Verification after parallel dispatch:
+1. Review each summary
+2. Check for conflicts (did agents edit same code?)
+3. Run full suite
+4. Spot check (agents can make systematic errors)
+
+SEQUENTIAL EXECUTION (for implementation plans):
+- Fresh subagent per task + two-stage review (spec then quality)
+- If reviewer finds issues: implementer fixes, reviewer reviews again
+- Never dispatch multiple implementation subagents in parallel (conflicts)
+- Never skip reviews
+- If subagent asks questions: answer clearly, don't rush them
+</subagent-dispatch-patterns>`;
 
 export const primaryAgent: AgentConfig = {
   description:

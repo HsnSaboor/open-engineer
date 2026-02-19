@@ -357,18 +357,107 @@ Open Engineer uses a comprehensive hook system to intercept and modify LLM inter
 
 ### Quick Start
 
+**Global install** (available in all projects):
+
 Add to `~/.config/opencode/opencode.json`:
 ```json
 { "plugin": ["open-engineer"] }
 ```
 
-Or use the local path if developing:
+**Project-scoped install** (available only in that project):
+
+Add `opencode.json` to your project root:
+```json
+{ "plugin": ["open-engineer"] }
+```
+
+Both installs include **75+ bundled skills** that are always available out of the box -- no extra setup needed.
+
+### Development Setup
+
 ```bash
 git clone https://github.com/HsnSaboor/open-engineer.git ~/.open-engineer
 cd ~/.open-engineer && bun install && bun run build
 ```
 
-### The "One-Prompt" Workflow
+---
+
+## 10. Skills System
+
+Open Engineer ships with **75+ bundled skills** covering frameworks and tools like React, Vue, Expo, Flutter, NestJS, Astro, Clerk, Apollo GraphQL, Cloudflare, databases, and more.
+
+Skills are markdown files with YAML frontmatter that get automatically matched to your queries and injected into the AI's system prompt -- giving the agent deep, specialized knowledge for whatever you're working on.
+
+### How It Works
+
+1. On your **first message** in a session, the skill matcher scores all available skills against your query
+2. Up to **3 best-matching skills** are auto-activated for the session
+3. Skill content is injected into the system prompt as `<skill>` XML tags
+4. The agent follows the skill's instructions alongside its core behavior
+
+### Skill Precedence (3-Tier)
+
+Skills are loaded in order of priority (later overrides earlier by name):
+
+| Priority | Location | Description |
+|----------|----------|-------------|
+| 1 (lowest) | `src/skills/bundled/` | Ships with the plugin. Always available. |
+| 2 | `~/.config/opencode/skills/` | Global user skills. Available in all projects. |
+| 3 (highest) | `<project>/.open-engineer/skills/` | Project-specific skills. Override everything else. |
+
+This means:
+- **Bundled skills** work everywhere, zero config
+- **Global custom skills** let you add your own skills available across all projects
+- **Project-local skills** can override bundled or global skills for project-specific behavior
+
+### Adding Custom Skills
+
+Create a `*SKILL.md` or `*-SKILL.md` file with YAML frontmatter:
+
+```markdown
+---
+name: my-custom-skill
+description: "Specialized instructions for my framework"
+tags: ["framework", "custom"]
+allowed-tools: []
+---
+
+# My Custom Skill
+
+Instructions for the AI agent go here...
+```
+
+Drop it in:
+- `~/.config/opencode/skills/my-skill/SKILL.md` for global availability
+- `<project>/.open-engineer/skills/my-skill/SKILL.md` for project-specific
+
+### Skill Matching Configuration
+
+Configure matching behavior in `~/.config/opencode/open-engineer.json`:
+
+```json
+{
+  "skillMatcher": {
+    "threshold": 0.5,
+    "maxResults": 5,
+    "cacheResults": true,
+    "providers": [
+      {
+        "name": "my-llm",
+        "baseURL": "https://api.example.com/v1",
+        "apiKey": "$MY_API_KEY",
+        "model": "gpt-4o-mini"
+      }
+    ]
+  }
+}
+```
+
+Without `providers`, matching uses heuristic scoring (name, keywords, tags). Adding a provider enables LLM-based matching for better accuracy.
+
+---
+
+## 11. The "One-Prompt" Workflow
 
 You don't need to micro-manage. Just act like a Lead Engineer.
 
